@@ -1,0 +1,19 @@
+{
+  "name": "MotoTaller — Gestión de Reparaciones",
+  "short_name": "MotoTaller",
+  "description": "Sistema interno de gestión para taller de motoimplementos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}

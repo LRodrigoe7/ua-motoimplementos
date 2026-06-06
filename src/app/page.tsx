@@ -1,65 +1,111 @@
-import Image from "next/image";
+import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
+import { Plus, AlertCircle, Clock, Wrench } from 'lucide-react'
+import { EquipoCard } from '@/components/equipos/EquipoCard'
+import { Card, CardBody } from '@/components/ui/Card'
+import { Equipo } from '@/types'
 
-export default function Home() {
+export const revalidate = 0
+
+async function getDashboardData() {
+  const supabase = await createClient()
+
+  const [{ data: equipos }, { data: urgentes }] = await Promise.all([
+    supabase
+      .from('equipos')
+      .select('*, clientes(*)')
+      .not('estado_actual', 'eq', 'Entregado')
+      .order('created_at', { ascending: false })
+      .limit(10),
+    supabase
+      .from('equipos')
+      .select('*, clientes(*)')
+      .in('estado_actual', ['Esperando Aprobación', 'Finalizado'])
+      .order('created_at', { ascending: true }),
+  ])
+
+  return { equipos: (equipos as Equipo[]) || [], urgentes: (urgentes as Equipo[]) || [] }
+}
+
+export default async function DashboardPage() {
+  const { equipos, urgentes } = await getDashboardData()
+
+  const contadores = {
+    ingreso: equipos.filter(e => e.estado_actual === 'Ingreso').length,
+    enReparacion: equipos.filter(e => e.estado_actual === 'En Reparación').length,
+    esperando: equipos.filter(e => e.estado_actual === 'Esperando Aprobación').length,
+    finalizados: equipos.filter(e => e.estado_actual === 'Finalizado').length,
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Panel principal</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{equipos.length} equipos activos</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <Link
+          href="/equipos/nuevo"
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition-colors shadow-sm"
+        >
+          <Plus className="h-4 w-4" />
+          Nuevo
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Ingresados" value={contadores.ingreso} color="bg-gray-50" />
+        <StatCard label="En Reparación" value={contadores.enReparacion} color="bg-orange-50" />
+        <StatCard label="Esperando aprobación" value={contadores.esperando} color="bg-yellow-50" alert={contadores.esperando > 0} />
+        <StatCard label="Listos para retirar" value={contadores.finalizados} color="bg-purple-50" alert={contadores.finalizados > 0} />
+      </div>
+
+      {urgentes.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <AlertCircle className="h-4 w-4 text-yellow-500" />
+            Requieren atención
+          </h2>
+          <div className="flex flex-col gap-2">
+            {urgentes.map(equipo => (
+              <EquipoCard key={equipo.id} equipo={equipo} />
+            ))}
+          </div>
         </div>
-      </main>
+      )}
+
+      <div>
+        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <Clock className="h-4 w-4 text-gray-400" />
+          Últimos ingresos
+        </h2>
+        {equipos.length === 0 ? (
+          <Card>
+            <CardBody className="flex flex-col items-center py-10 gap-3 text-center">
+              <Wrench className="h-10 w-10 text-gray-300" />
+              <p className="text-gray-500">No hay equipos activos.</p>
+              <Link href="/equipos/nuevo" className="text-blue-600 text-sm font-medium">
+                Registrar el primer equipo
+              </Link>
+            </CardBody>
+          </Card>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {equipos.map(equipo => (
+              <EquipoCard key={equipo.id} equipo={equipo} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-  );
+  )
+}
+
+function StatCard({ label, value, color, alert }: { label: string; value: number; color: string; alert?: boolean }) {
+  return (
+    <div className={`${color} rounded-xl p-4 flex flex-col gap-1 ${alert && value > 0 ? 'ring-1 ring-yellow-400' : ''}`}>
+      <span className="text-2xl font-bold text-gray-900">{value}</span>
+      <span className="text-xs text-gray-600 leading-tight">{label}</span>
+    </div>
+  )
 }
