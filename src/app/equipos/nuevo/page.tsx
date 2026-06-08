@@ -7,29 +7,9 @@ import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Card, CardBody } from '@/components/ui/Card'
+import { ComboboxCreatable } from '@/components/ui/ComboboxCreatable'
 import { Cliente } from '@/types'
 import { createClient } from '@/lib/supabase/client'
-
-const TIPOS_EQUIPO = [
-  { value: 'Motosierra', label: 'Motosierra' },
-  { value: 'Motoguadaña', label: 'Motoguadaña' },
-  { value: 'Grupo electrógeno', label: 'Grupo electrógeno' },
-  { value: 'Bordeadora', label: 'Bordeadora' },
-  { value: 'Bomba de agua', label: 'Bomba de agua' },
-  { value: 'Motocultor', label: 'Motocultor' },
-  { value: 'Otro', label: 'Otro' },
-]
-
-const MARCAS = [
-  { value: 'Stihl', label: 'Stihl' },
-  { value: 'Husqvarna', label: 'Husqvarna' },
-  { value: 'Dolmar', label: 'Dolmar' },
-  { value: 'Echo', label: 'Echo' },
-  { value: 'Honda', label: 'Honda' },
-  { value: 'Yamaha', label: 'Yamaha' },
-  { value: 'Briggs & Stratton', label: 'Briggs & Stratton' },
-  { value: 'Otra', label: 'Otra' },
-]
 
 interface FormData {
   clienteId: string
@@ -171,21 +151,22 @@ export default function NuevoEquipoPage() {
         <Card>
           <CardBody className="flex flex-col gap-4">
             <h2 className="font-semibold text-gray-800">Equipo</h2>
-            <Select
+            <ComboboxCreatable
               label="Tipo de equipo"
-              placeholder="— Elegir tipo —"
+              categoria="tipo_equipo"
               value={form.tipo}
-              onChange={e => setField('tipo', e.target.value)}
-              options={TIPOS_EQUIPO}
+              onChange={v => setField('tipo', v)}
+              placeholder="Ej: Motosierra, Bordeadora..."
               error={errores.tipo}
+              required
             />
             <div className="grid grid-cols-2 gap-3">
-              <Select
+              <ComboboxCreatable
                 label="Marca"
-                placeholder="— Elegir —"
+                categoria="marca"
                 value={form.marca}
-                onChange={e => setField('marca', e.target.value)}
-                options={MARCAS}
+                onChange={v => setField('marca', v)}
+                placeholder="Ej: Stihl, Honda..."
               />
               <Input label="Modelo" value={form.modelo} onChange={e => setField('modelo', e.target.value)} placeholder="Ej: MS 180" />
             </div>

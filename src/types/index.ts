@@ -53,6 +53,29 @@ export interface GuardaInfo {
   diasRestantesSinCosto: number
 }
 
+export interface Mensaje {
+  id: string
+  cliente_id: string | null
+  equipo_id: number | null
+  whatsapp_id: string | null
+  numero_wa: string
+  nombre_wa: string
+  remitente: 'cliente' | 'taller'
+  contenido: string
+  leido: boolean
+  created_at: string
+  clientes?: Cliente
+}
+
+export interface Conversacion {
+  numero_wa: string
+  nombre_wa: string
+  ultimo_mensaje: string
+  ultima_fecha: string
+  no_leidos: number
+  cliente_id: string | null
+}
+
 export interface DashboardStats {
   total: number
   porEstado: Record<EstadoEquipo, number>

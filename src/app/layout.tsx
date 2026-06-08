@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
+import { NotificationManager } from '@/components/layout/NotificationManager'
 
 export const metadata: Metadata = {
   title: 'MotoTaller — Gestión de Reparaciones',
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body>
         <Navbar />
+        <NotificationManager />
         <main className="sm:pt-14 pb-20 sm:pb-0 min-h-screen">
           <div className="max-w-2xl mx-auto px-4 py-4 sm:py-6">
             {children}
