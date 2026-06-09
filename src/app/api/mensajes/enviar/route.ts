@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ to: `+${phone}`, text: contenido.trim() }),
+      body: JSON.stringify({ to: `${phone}@s.whatsapp.net`, text: contenido.trim() }),
     }),
     createClient(),
   ])

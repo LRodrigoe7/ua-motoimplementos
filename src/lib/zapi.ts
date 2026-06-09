@@ -8,9 +8,9 @@ export function normalizarTelefono(numero: string): string {
   return `549${digits}`
 }
 
-// WasenderAPI requires E.164 format (+549...)
-function toE164(numero: string): string {
-  return `+${normalizarTelefono(numero)}`
+// WasenderAPI requires JID format (549...@s.whatsapp.net)
+function toJID(numero: string): string {
+  return `${normalizarTelefono(numero)}@s.whatsapp.net`
 }
 
 export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<boolean> {
@@ -20,7 +20,7 @@ export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<
     return false
   }
 
-  const phone = toE164(numero)
+  const phone = toJID(numero)
   console.log(`[Wasender] Enviando a ${phone}`)
 
   try {
@@ -30,7 +30,7 @@ export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ to: phone, text: mensaje }),
+      body: JSON.stringify({ to: toJID(numero), text: mensaje }),
     })
     const body = await res.text()
     console.log(`[Wasender] status=${res.status} body=${body}`)
