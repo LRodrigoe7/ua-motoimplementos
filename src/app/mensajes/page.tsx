@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Megaphone } from 'lucide-react'
 import Link from 'next/link'
@@ -10,7 +10,7 @@ import { ConversacionView } from '@/components/mensajes/ConversacionView'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingScreen } from '@/components/ui/Spinner'
 
-export default function MensajesPage() {
+function MensajesInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [conversaciones, setConversaciones] = useState<Conversacion[]>([])
@@ -104,5 +104,13 @@ export default function MensajesPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function MensajesPage() {
+  return (
+    <Suspense fallback={<LoadingScreen mensaje="Cargando mensajes..." />}>
+      <MensajesInner />
+    </Suspense>
   )
 }
