@@ -24,7 +24,7 @@ export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<
   console.log(`[Wasender] Enviando a ${phone}`)
 
   try {
-    const res = await fetch('https://www.wasenderapi.com/api/send-message', {
+    const res = await fetch('https://wasenderapi.com/api/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

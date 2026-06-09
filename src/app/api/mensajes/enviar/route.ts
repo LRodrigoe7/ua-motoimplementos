@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const phone = normalizarTelefono(numero_wa)
 
   const [res, supabase] = await Promise.all([
-    fetch('https://www.wasenderapi.com/api/send-message', {
+    fetch('https://wasenderapi.com/api/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
