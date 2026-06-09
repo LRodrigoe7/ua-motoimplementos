@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Loader2, MoreVertical, Trash2, Ban } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Send, Loader2, MoreVertical, Trash2, Ban, UserPlus } from 'lucide-react'
 import { Mensaje } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, cn } from '@/lib/utils'
@@ -15,6 +16,7 @@ interface ConversacionViewProps {
 }
 
 export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, onBloquear }: ConversacionViewProps) {
+  const router = useRouter()
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -91,6 +93,11 @@ export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, on
     onEliminar()
   }
 
+  const agregarComoCliente = () => {
+    setMenuAbierto(false)
+    router.push(`/clientes?nuevo=1&whatsapp=${encodeURIComponent(numero_wa)}&nombre=${encodeURIComponent(nombre)}`)
+  }
+
   const bloquearNumero = async () => {
     if (!confirm(`¿Bloquear a ${nombre}? No podrá enviarte mensajes por WhatsApp.`)) return
     setAccionando(true)
@@ -133,9 +140,18 @@ export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, on
 
           {menuAbierto && (
             <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+              {!cliente_id && (
+                <button
+                  onClick={agregarComoCliente}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
+                >
+                  <UserPlus className="h-4 w-4 shrink-0" />
+                  Agregar como cliente
+                </button>
+              )}
               <button
                 onClick={eliminarConversacion}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors ${!cliente_id ? 'border-t border-gray-100' : ''}`}
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
                 Eliminar conversación

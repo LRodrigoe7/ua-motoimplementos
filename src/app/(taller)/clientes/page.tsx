@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Phone, Mail, Plus, User } from 'lucide-react'
 import { Cliente } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -10,7 +11,8 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { LoadingScreen } from '@/components/ui/Spinner'
 
-export default function ClientesPage() {
+function ClientesInner() {
+  const searchParams = useSearchParams()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -25,6 +27,16 @@ export default function ClientesPage() {
   }
 
   useEffect(() => { cargar() }, [])
+
+  // Abrir modal pre-llenado si viene desde mensajes
+  useEffect(() => {
+    if (searchParams.get('nuevo') === '1') {
+      const whatsapp = searchParams.get('whatsapp') || ''
+      const nombre = searchParams.get('nombre') || ''
+      setForm(f => ({ ...f, whatsapp, nombre }))
+      setModal(true)
+    }
+  }, [searchParams])
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,7 +67,7 @@ export default function ClientesPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-        <Button size="md" onClick={() => setModal(true)}>
+        <Button size="md" onClick={() => { setForm({ nombre: '', whatsapp: '', email: '', direccion: '' }); setModal(true) }}>
           <Plus className="h-4 w-4" />
           Nuevo
         </Button>
@@ -95,7 +107,7 @@ export default function ClientesPage() {
         </div>
       )}
 
-      <Modal isOpen={modal} onClose={() => setModal(false)} title="Nuevo cliente">
+      <Modal isOpen={modal} onClose={() => { setModal(false); setError('') }} title="Nuevo cliente">
         <form onSubmit={handleGuardar} className="flex flex-col gap-4">
           <Input label="Nombre y apellido *" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
           <Input label="WhatsApp" type="tel" placeholder="+549..." value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))} />
@@ -106,5 +118,13 @@ export default function ClientesPage() {
         </form>
       </Modal>
     </div>
+  )
+}
+
+export default function ClientesPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <ClientesInner />
+    </Suspense>
   )
 }
