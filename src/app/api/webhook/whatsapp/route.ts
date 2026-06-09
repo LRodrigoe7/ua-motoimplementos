@@ -63,7 +63,13 @@ export async function POST(req: NextRequest) {
     if (body.type === 'SentCallback') {
       if (body.isGroup) return NextResponse.json({ ok: true })
 
-      const numeroWa = normalizarTelefono(body.phone as string)
+      // Z-API puede usar phone, chatId o to según la versión
+      const rawPhone = body.phone || body.chatId || body.to
+      console.log('[SentCallback] rawPhone=', rawPhone, 'keys=', Object.keys(body).join(','))
+
+      if (!rawPhone) return NextResponse.json({ ok: true })
+
+      const numeroWa = normalizarTelefono(rawPhone as string)
       const whatsappId = body.messageId as string
       const contenido: string =
         body.text?.message ||
