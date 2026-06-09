@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { enviarPushATodos } from '@/lib/push'
 
+function normalizarTelefono(numero: string): string {
+  const digits = numero.replace(/\D/g, '')
+  if (digits.startsWith('549')) return digits
+  if (digits.startsWith('54')) return `549${digits.slice(2)}`
+  return `549${digits}`
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -11,7 +18,7 @@ export async function POST(req: NextRequest) {
     if (body.type === 'ReceivedCallback') {
       if (body.fromMe || body.isGroup) return NextResponse.json({ ok: true })
 
-      const numeroWa = body.phone as string
+      const numeroWa = normalizarTelefono(body.phone as string)
       const nombreWa = body.senderName || numeroWa
       const whatsappId = body.messageId as string
       const contenido: string =
@@ -56,7 +63,7 @@ export async function POST(req: NextRequest) {
     if (body.type === 'SentCallback') {
       if (body.isGroup) return NextResponse.json({ ok: true })
 
-      const numeroWa = body.phone as string
+      const numeroWa = normalizarTelefono(body.phone as string)
       const whatsappId = body.messageId as string
       const contenido: string =
         body.text?.message ||
