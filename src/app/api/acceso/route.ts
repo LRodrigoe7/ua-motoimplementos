@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const runtime = 'edge'
+
 export async function POST(req: NextRequest) {
   const { codigo } = await req.json()
   const codigoCorrecto = process.env.TALLER_ACCESS_CODE

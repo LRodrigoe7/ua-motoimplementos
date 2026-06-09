@@ -26,17 +26,20 @@ export async function POST(req: NextRequest) {
   const phone = normalizarTelefono(numero_wa)
   const baseUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}`
 
-  const res = await fetch(`${baseUrl}/send-text`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(clientToken ? { 'Client-Token': clientToken } : {}),
-    },
-    body: JSON.stringify({ phone, message: contenido }),
-  })
+  // Iniciar Z-API y Supabase en paralelo
+  const [res, supabase] = await Promise.all([
+    fetch(`${baseUrl}/send-text`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(clientToken ? { 'Client-Token': clientToken } : {}),
+      },
+      body: JSON.stringify({ phone, message: contenido }),
+    }),
+    createClient(),
+  ])
 
   const zapiBody = await res.text()
-  console.log(`[Z-API enviar] phone=${phone} status=${res.status} body=${zapiBody}`)
 
   if (!res.ok) {
     return NextResponse.json({ error: `Error Z-API: ${zapiBody}` }, { status: 500 })
@@ -44,16 +47,15 @@ export async function POST(req: NextRequest) {
 
   const zapiData = zapiBody ? JSON.parse(zapiBody) : {}
 
-  const supabase = createClient()
   const { data: cliente } = await supabase
     .from('clientes')
     .select('id')
-    .eq('whatsapp', numero_wa)
+    .or(`whatsapp.eq.${phone},whatsapp.eq.${numero_wa}`)
     .maybeSingle()
 
   await supabase.from('mensajes').insert({
     whatsapp_id: zapiData?.messageId || null,
-    numero_wa,
+    numero_wa: phone,
     nombre_wa: 'Taller',
     cliente_id: cliente?.id || null,
     remitente: 'taller',
