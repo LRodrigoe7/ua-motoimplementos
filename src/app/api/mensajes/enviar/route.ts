@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   const phone = normalizarTelefono(numero_wa)
-  const to = `${phone}@s.whatsapp.net`
+  const to = `+${phone}`
 
   console.log(`[enviar] to=${to} apiKey=${apiKey.slice(0, 8)}...`)
 
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ to, message: contenido.trim() }),
+      body: JSON.stringify({ to, text: contenido.trim() }),
     }),
     createClient(),
   ])
