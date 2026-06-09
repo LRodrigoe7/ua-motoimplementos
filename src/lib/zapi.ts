@@ -15,7 +15,13 @@ function toE164(numero: string): string {
 
 export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<boolean> {
   const apiKey = process.env.WASENDER_API_KEY
-  if (!apiKey) return false
+  if (!apiKey) {
+    console.error('[Wasender] WASENDER_API_KEY no configurada')
+    return false
+  }
+
+  const phone = toE164(numero)
+  console.log(`[Wasender] Enviando a ${phone}`)
 
   try {
     const res = await fetch('https://www.wasenderapi.com/api/send-message', {
@@ -24,10 +30,13 @@ export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ to: toE164(numero), text: mensaje }),
+      body: JSON.stringify({ to: phone, text: mensaje }),
     })
+    const body = await res.text()
+    console.log(`[Wasender] status=${res.status} body=${body}`)
     return res.ok
-  } catch {
+  } catch (err) {
+    console.error('[Wasender] fetch error:', err)
     return false
   }
 }
