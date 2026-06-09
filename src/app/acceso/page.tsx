@@ -1,11 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Lock, Loader2 } from 'lucide-react'
 
 export default function AccesoPage() {
-  const router = useRouter()
   const [codigo, setCodigo] = useState('')
   const [error, setError] = useState(false)
   const [cargando, setCargando] = useState(false)
@@ -23,8 +21,7 @@ export default function AccesoPage() {
     })
 
     if (res.ok) {
-      router.push('/')
-      router.refresh()
+      window.location.href = '/'
     } else {
       setError(true)
       setCargando(false)
