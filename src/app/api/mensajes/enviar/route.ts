@@ -15,6 +15,9 @@ export async function POST(req: NextRequest) {
   }
 
   const phone = normalizarTelefono(numero_wa)
+  const to = `${phone}@s.whatsapp.net`
+
+  console.log(`[enviar] to=${to} apiKey=${apiKey.slice(0, 8)}...`)
 
   const [res, supabase] = await Promise.all([
     fetch('https://www.wasenderapi.com/api/send-message', {
@@ -23,17 +26,19 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ to: `${phone}@s.whatsapp.net`, text: contenido.trim() }),
+      body: JSON.stringify({ to, text: contenido.trim() }),
     }),
     createClient(),
   ])
 
+  const body = await res.text()
+  console.log(`[enviar] status=${res.status} body=${body}`)
+
   if (!res.ok) {
-    const body = await res.text()
     return NextResponse.json({ error: `Error WasenderAPI: ${body}` }, { status: 500 })
   }
 
-  const resData = await res.json()
+  const resData = body ? JSON.parse(body) : {}
   const msgId = resData?.data?.msgId?.toString() || null
 
   const { data: cliente } = await supabase
