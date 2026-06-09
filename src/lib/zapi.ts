@@ -30,7 +30,7 @@ export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ to: toJID(numero), text: mensaje }),
+      body: JSON.stringify({ to: toJID(numero), message: mensaje }),
     })
     const body = await res.text()
     console.log(`[Wasender] status=${res.status} body=${body}`)

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ to, text: contenido.trim() }),
+      body: JSON.stringify({ to, message: contenido.trim() }),
     }),
     createClient(),
   ])
