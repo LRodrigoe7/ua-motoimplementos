@@ -6,6 +6,7 @@ const RUTAS_PUBLICAS = [
   '/aprobar',
   '/api/aprobar',
   '/api/webhook',
+  '/terminos',
 ]
 
 export function middleware(req: NextRequest) {

@@ -128,6 +128,14 @@ export default function AprobarPage({ params }: { params: Promise<{ token: strin
                   Rechazar
                 </button>
               </div>
+
+              <p className="text-xs text-gray-400 mt-4 text-center leading-relaxed">
+                Al aprobar este presupuesto aceptás los{' '}
+                <a href="/terminos" target="_blank" className="text-blue-500 underline underline-offset-2">
+                  Términos y condiciones
+                </a>{' '}
+                del servicio.
+              </p>
             </>
           )}
 
