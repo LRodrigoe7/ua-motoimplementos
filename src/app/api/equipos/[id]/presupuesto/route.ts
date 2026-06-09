@@ -57,15 +57,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const montoFormateado = `$${Number(monto).toLocaleString('es-AR')}`
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    let mensaje: string
     if (necesitaAprobacion) {
       const linkAprobacion = `${appUrl}/aprobar/${token}`
-      mensaje = `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado y el presupuesto de reparación es de *${montoFormateado}*.\n\nPara *aprobar o rechazar* la reparación, ingresá al siguiente link:\n${linkAprobacion}\n\nTenés 15 días para decidir.`
+      const mensajeInfo = `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado y el presupuesto de reparación es de *${montoFormateado}*.\n\nIngresá al siguiente link para *aprobar o rechazar* la reparación. Tenés 15 días para decidir.`
+      await zapiEnviarTexto(cliente.whatsapp, mensajeInfo)
+      await zapiEnviarTexto(cliente.whatsapp, linkAprobacion)
     } else {
-      mensaje = `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado. El presupuesto es de *${montoFormateado}* y quedó aprobado automáticamente.\n\n¡Ya estamos trabajando en la reparación! Te avisamos cuando esté listo. 🔧`
+      await zapiEnviarTexto(cliente.whatsapp, `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado. El presupuesto es de *${montoFormateado}* y quedó aprobado automáticamente.\n\n¡Ya estamos trabajando en la reparación! Te avisamos cuando esté listo. 🔧`)
     }
-
-    await zapiEnviarTexto(cliente.whatsapp, mensaje)
   }
 
   return NextResponse.json({ ok: true, necesitaAprobacion, token })

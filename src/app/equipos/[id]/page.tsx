@@ -186,7 +186,7 @@ export default function EquipoDetallePage() {
       <div className="flex flex-col gap-3">
         {puedePresupuestar && (
           <Button size="xl" fullWidth onClick={() => setModalPresupuesto(true)}>
-            Cargar presupuesto
+            Enviar presupuesto
           </Button>
         )}
         {puedeIniciarReparacion && (
@@ -215,7 +215,7 @@ export default function EquipoDetallePage() {
       </Card>
 
       {/* Modal presupuesto */}
-      <Modal isOpen={modalPresupuesto} onClose={() => setModalPresupuesto(false)} title="Cargar presupuesto">
+      <Modal isOpen={modalPresupuesto} onClose={() => setModalPresupuesto(false)} title="Enviar presupuesto">
         <PresupuestoForm
           equipoId={equipo.id}
           diagnosticoActual={equipo.diagnostico_tecnico}
