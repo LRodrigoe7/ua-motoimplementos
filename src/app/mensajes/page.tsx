@@ -86,6 +86,15 @@ export default function MensajesPage() {
             <ConversacionView
               numero_wa={seleccionada}
               nombre={convSeleccionada.nombre_wa}
+              cliente_id={convSeleccionada.cliente_id}
+              onEliminar={() => {
+                setConversaciones(prev => prev.filter(c => c.numero_wa !== seleccionada))
+                setSeleccionada(null)
+              }}
+              onBloquear={() => {
+                setConversaciones(prev => prev.filter(c => c.numero_wa !== seleccionada))
+                setSeleccionada(null)
+              }}
             />
           </>
         ) : (

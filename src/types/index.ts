@@ -14,6 +14,7 @@ export interface Cliente {
   direccion: string
   whatsapp: string
   email: string
+  bloqueado: boolean
   created_at?: string
 }
 

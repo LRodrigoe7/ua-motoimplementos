@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+function normalizarTelefono(numero: string): string {
+  const digits = numero.replace(/\D/g, '')
+  if (digits.startsWith('549')) return digits
+  if (digits.startsWith('54')) return `549${digits.slice(2)}`
+  return `549${digits}`
+}
+
 export async function POST(req: NextRequest) {
   const { numero_wa, contenido } = await req.json()
 
@@ -8,35 +15,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
   }
 
-  const evolutionUrl = process.env.EVOLUTION_API_URL
-  const evolutionKey = process.env.EVOLUTION_API_KEY
-  const instance = process.env.EVOLUTION_INSTANCE
+  const instanceId = process.env.ZAPI_INSTANCE_ID
+  const token = process.env.ZAPI_TOKEN
+  const clientToken = process.env.ZAPI_CLIENT_TOKEN
 
-  if (!evolutionUrl || !evolutionKey || !instance || evolutionKey === 'tu-api-key') {
-    return NextResponse.json({ error: 'Evolution API no configurada' }, { status: 503 })
+  if (!instanceId || !token || instanceId === 'PEGAR_ID_DE_INSTANCIA_AQUI') {
+    return NextResponse.json({ error: 'Z-API no configurada' }, { status: 503 })
   }
 
-  // Enviar por Evolution API
-  const res = await fetch(`${evolutionUrl}/message/sendText/${instance}`, {
+  const phone = normalizarTelefono(numero_wa)
+  const baseUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}`
+
+  const res = await fetch(`${baseUrl}/send-text`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': evolutionKey,
+      ...(clientToken ? { 'Client-Token': clientToken } : {}),
     },
-    body: JSON.stringify({
-      number: `${numero_wa}@s.whatsapp.net`,
-      text: contenido,
-    }),
+    body: JSON.stringify({ phone, message: contenido }),
   })
 
+  const zapiBody = await res.text()
+  console.log(`[Z-API enviar] phone=${phone} status=${res.status} body=${zapiBody}`)
+
   if (!res.ok) {
-    const err = await res.text()
-    return NextResponse.json({ error: `Error Evolution API: ${err}` }, { status: 500 })
+    return NextResponse.json({ error: `Error Z-API: ${zapiBody}` }, { status: 500 })
   }
 
-  const evData = await res.json()
+  const zapiData = zapiBody ? JSON.parse(zapiBody) : {}
 
-  // Guardar el mensaje enviado en la BD
   const supabase = createClient()
   const { data: cliente } = await supabase
     .from('clientes')
@@ -45,7 +52,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   await supabase.from('mensajes').insert({
-    whatsapp_id: evData?.key?.id || null,
+    whatsapp_id: zapiData?.messageId || null,
     numero_wa,
     nombre_wa: 'Taller',
     cliente_id: cliente?.id || null,

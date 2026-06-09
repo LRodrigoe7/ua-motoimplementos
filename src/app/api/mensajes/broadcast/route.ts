@@ -3,6 +3,13 @@ import { createClient } from '@/lib/supabase/server'
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
 
+function normalizarTelefono(numero: string): string {
+  const digits = numero.replace(/\D/g, '')
+  if (digits.startsWith('549')) return digits              // ya correcto
+  if (digits.startsWith('54')) return `549${digits.slice(2)}` // falta el 9 móvil
+  return `549${digits}`                                    // sin código de país
+}
+
 export async function POST(req: NextRequest) {
   const { destinatarios, mensaje, imagen, imagenMime, imagenNombre } = await req.json()
   // destinatarios: { numero_wa: string, nombre: string, cliente_id: string | null }[]
@@ -12,13 +19,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
   }
 
-  const evolutionUrl = process.env.EVOLUTION_API_URL
-  const evolutionKey = process.env.EVOLUTION_API_KEY
-  const instance = process.env.EVOLUTION_INSTANCE
+  const instanceId = process.env.ZAPI_INSTANCE_ID
+  const token = process.env.ZAPI_TOKEN
+  const clientToken = process.env.ZAPI_CLIENT_TOKEN
 
-  if (!evolutionUrl || !evolutionKey || !instance || evolutionKey === 'tu-api-key') {
-    return NextResponse.json({ error: 'Evolution API no configurada' }, { status: 503 })
+  if (!instanceId || !token || instanceId === 'PEGAR_ID_DE_INSTANCIA_AQUI') {
+    return NextResponse.json({ error: 'Z-API no configurada' }, { status: 503 })
   }
+
+  const baseUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}`
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (clientToken) headers['Client-Token'] = clientToken
 
   const supabase = createClient()
   let enviados = 0
@@ -29,33 +40,37 @@ export async function POST(req: NextRequest) {
     const dest = destinatarios[i]
     const primerNombre = dest.nombre.split(' ')[0]
     const textoPersonalizado = mensaje.replace(/\{nombre\}/gi, primerNombre)
+    const phone = normalizarTelefono(dest.numero_wa)
 
     try {
       let res: Response
 
       if (conImagen) {
-        res = await fetch(`${evolutionUrl}/message/sendMedia/${instance}`, {
+        const mimeType = imagenMime || 'image/jpeg'
+        const imageData = imagen.startsWith('data:')
+          ? imagen
+          : `data:${mimeType};base64,${imagen}`
+
+        res = await fetch(`${baseUrl}/send-image`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: evolutionKey },
+          headers,
           body: JSON.stringify({
-            number: `${dest.numero_wa}@s.whatsapp.net`,
-            mediatype: 'image',
-            mimetype: imagenMime || 'image/jpeg',
-            fileName: imagenNombre || 'imagen.jpg',
+            phone,
+            image: imageData,
             caption: textoPersonalizado,
-            media: imagen,
+            fileName: imagenNombre || 'imagen.jpg',
           }),
         })
       } else {
-        res = await fetch(`${evolutionUrl}/message/sendText/${instance}`, {
+        res = await fetch(`${baseUrl}/send-text`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: evolutionKey },
-          body: JSON.stringify({
-            number: `${dest.numero_wa}@s.whatsapp.net`,
-            text: textoPersonalizado,
-          }),
+          headers,
+          body: JSON.stringify({ phone, message: textoPersonalizado }),
         })
       }
+
+      const zapiBody = await res.text()
+      console.log(`[Z-API] phone=${phone} status=${res.status} body=${zapiBody}`)
 
       if (res.ok) {
         await supabase.from('mensajes').insert({

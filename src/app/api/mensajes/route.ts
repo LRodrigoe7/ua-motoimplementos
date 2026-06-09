@@ -60,3 +60,15 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(Array.from(mapa.values()))
 }
+
+// DELETE /api/mensajes?numero=... → elimina toda la conversación
+export async function DELETE(req: NextRequest) {
+  const numero = req.nextUrl.searchParams.get('numero')
+  if (!numero) return NextResponse.json({ error: 'Falta número' }, { status: 400 })
+
+  const supabase = createClient()
+  const { error } = await supabase.from('mensajes').delete().eq('numero_wa', numero)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
+}
