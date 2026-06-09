@@ -46,12 +46,24 @@ export async function GET(req: NextRequest) {
     if (!mapa.has(m.numero_wa)) {
       mapa.set(m.numero_wa, {
         numero_wa: m.numero_wa,
-        nombre_wa: m.clientes?.nombre_apellido || m.nombre_wa,
+        // Si hay cliente vinculado usamos su nombre; si no, buscamos el nombre del cliente en mensajes recibidos
+        nombre_wa: m.clientes?.nombre_apellido || (m.remitente === 'cliente' ? m.nombre_wa : null) || m.numero_wa,
         ultimo_mensaje: m.contenido,
         ultima_fecha: m.created_at,
         no_leidos: 0,
         cliente_id: m.cliente_id,
       })
+    } else {
+      const conv = mapa.get(m.numero_wa)!
+      // Actualizar nombre si encontramos un mensaje del cliente con nombre mejor que el número
+      if (conv.nombre_wa === conv.numero_wa && m.remitente === 'cliente' && m.nombre_wa) {
+        conv.nombre_wa = m.clientes?.nombre_apellido || m.nombre_wa
+      }
+      // Actualizar cliente_id si lo encontramos en un mensaje anterior
+      if (!conv.cliente_id && m.cliente_id) {
+        conv.cliente_id = m.cliente_id
+        if (m.clientes?.nombre_apellido) conv.nombre_wa = m.clientes.nombre_apellido
+      }
     }
     if (!m.leido && m.remitente === 'cliente') {
       mapa.get(m.numero_wa)!.no_leidos++
