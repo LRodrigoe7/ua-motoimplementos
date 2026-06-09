@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { EstadoEquipo } from '@/types'
 import { transicionValida } from '@/lib/state-machine'
-import { zapiEnviarTexto } from '@/lib/zapi'
+import { zapiEnviarTexto, normalizarTelefono } from '@/lib/zapi'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: equipo, error: errGet } = await supabase
     .from('equipos')
-    .select('estado_actual, tipo, marca, modelo, clientes(nombre_apellido, whatsapp)')
+    .select('estado_actual, tipo, marca, modelo, cliente_id, clientes(nombre_apellido, whatsapp)')
     .eq('id', id)
     .single()
 
@@ -41,10 +41,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (cliente?.whatsapp) {
       const primerNombre = cliente.nombre_apellido.split(' ')[0]
       const descripcion = [equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ')
-      await zapiEnviarTexto(
-        cliente.whatsapp,
-        `Hola ${primerNombre}! 🎉\n\nTu equipo *#${id} - ${descripcion}* está listo para retirar.\n\nTenés *15 días corridos* para pasar a buscarlo. Pasado ese plazo se aplica un cargo de guarda mensual.\n\n¡Gracias por elegirnos! 🔧`
-      )
+      const contenido = `Hola ${primerNombre}! 🎉\n\nTu equipo *#${id} - ${descripcion}* está listo para retirar.\n\nTenés *15 días corridos* para pasar a buscarlo. Pasado ese plazo se aplica un cargo de guarda mensual.\n\n¡Gracias por elegirnos! 🔧`
+      const r = await zapiEnviarTexto(cliente.whatsapp, contenido)
+      if (r.ok) {
+        const phone = normalizarTelefono(cliente.whatsapp)
+        const clienteId = (equipo as { cliente_id?: string }).cliente_id || null
+        await supabase.from('mensajes').insert({
+          whatsapp_id: r.messageId,
+          numero_wa: phone,
+          nombre_wa: 'Taller',
+          cliente_id: clienteId,
+          remitente: 'taller',
+          contenido,
+          leido: true,
+        })
+      }
     }
   }
 

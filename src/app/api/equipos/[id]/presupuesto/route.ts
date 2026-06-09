@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requiereAprobacion } from '@/lib/state-machine'
 import { generarTokenAprobacion } from '@/lib/utils'
-import { zapiEnviarTexto } from '@/lib/zapi'
+import { zapiEnviarTexto, normalizarTelefono } from '@/lib/zapi'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Enviar WhatsApp al cliente
   const { data: equipo } = await supabase
     .from('equipos')
-    .select('tipo, marca, modelo, clientes(nombre_apellido, whatsapp)')
+    .select('tipo, marca, modelo, cliente_id, clientes(nombre_apellido, whatsapp)')
     .eq('id', id)
     .single()
 
@@ -56,15 +56,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const descripcionEquipo = [equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ')
     const montoFormateado = `$${Number(monto).toLocaleString('es-AR')}`
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const phone = normalizarTelefono(cliente.whatsapp)
+    const clienteId = (equipo as { cliente_id?: string }).cliente_id || null
+
+    const guardar = async (contenido: string, messageId: string | null) => {
+      await supabase.from('mensajes').insert({
+        whatsapp_id: messageId,
+        numero_wa: phone,
+        nombre_wa: 'Taller',
+        cliente_id: clienteId,
+        remitente: 'taller',
+        contenido,
+        leido: true,
+      })
+    }
 
     if (necesitaAprobacion) {
       const linkAprobacion = `${appUrl}/aprobar/${token}`
       const mensajeInfo = `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado y el presupuesto de reparación es de *${montoFormateado}*.\n\nIngresá al siguiente link para *aprobar o rechazar* la reparación. Tenés 15 días para decidir.`
-      await zapiEnviarTexto(cliente.whatsapp, mensajeInfo)
+      const r1 = await zapiEnviarTexto(cliente.whatsapp, mensajeInfo)
+      if (r1.ok) await guardar(mensajeInfo, r1.messageId)
       await new Promise(r => setTimeout(r, 2000))
-      await zapiEnviarTexto(cliente.whatsapp, linkAprobacion)
+      const r2 = await zapiEnviarTexto(cliente.whatsapp, linkAprobacion)
+      if (r2.ok) await guardar(linkAprobacion, r2.messageId)
     } else {
-      await zapiEnviarTexto(cliente.whatsapp, `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado. El presupuesto es de *${montoFormateado}* y quedó aprobado automáticamente.\n\n¡Ya estamos trabajando en la reparación! Te avisamos cuando esté listo. 🔧`)
+      const mensajeAuto = `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado. El presupuesto es de *${montoFormateado}* y quedó aprobado automáticamente.\n\n¡Ya estamos trabajando en la reparación! Te avisamos cuando esté listo. 🔧`
+      const r = await zapiEnviarTexto(cliente.whatsapp, mensajeAuto)
+      if (r.ok) await guardar(mensajeAuto, r.messageId)
     }
   }
 

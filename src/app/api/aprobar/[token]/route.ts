@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { zapiEnviarTexto } from '@/lib/zapi'
+import { zapiEnviarTexto, normalizarTelefono } from '@/lib/zapi'
 
 // GET /api/aprobar/[token] → datos del presupuesto para mostrar al cliente
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   const { data: equipo } = await supabase
     .from('equipos')
-    .select('id, tipo, marca, modelo, clientes(nombre_apellido, whatsapp)')
+    .select('id, tipo, marca, modelo, cliente_id, clientes(nombre_apellido, whatsapp)')
     .eq('token_aprobacion', token)
     .eq('estado_actual', 'Esperando Aprobación')
     .maybeSingle()
@@ -63,9 +63,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   // Invalidar el token
   await supabase.from('equipos').update({ token_aprobacion: null }).eq('id', equipo.id)
 
-  // Notificar al taller por WhatsApp si hay número configurado
   const cliente = (Array.isArray(equipo.clientes) ? equipo.clientes[0] : equipo.clientes) as { nombre_apellido: string; whatsapp: string } | null
   const descripcion = [equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ')
+  const clienteId = (equipo as { cliente_id?: string }).cliente_id || null
+
+  const guardar = async (contenido: string, messageId: string | null) => {
+    if (!cliente?.whatsapp) return
+    await supabase.from('mensajes').insert({
+      whatsapp_id: messageId,
+      numero_wa: normalizarTelefono(cliente.whatsapp),
+      nombre_wa: 'Taller',
+      cliente_id: clienteId,
+      remitente: 'taller',
+      contenido,
+      leido: true,
+    })
+  }
 
   if (decision === 'aceptar') {
     // Trigger: el estado Aceptado dispara cambio a En Reparación
@@ -77,18 +90,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
     if (cliente?.whatsapp) {
       const primerNombre = cliente.nombre_apellido.split(' ')[0]
-      await zapiEnviarTexto(
-        cliente.whatsapp,
-        `¡Perfecto ${primerNombre}! ✅ Recibimos tu aprobación para el equipo *#${equipo.id} - ${descripcion}*. Ya estamos trabajando en la reparación. Te avisamos cuando esté listo. 🔧`
-      )
+      const contenido = `¡Perfecto ${primerNombre}! ✅ Recibimos tu aprobación para el equipo *#${equipo.id} - ${descripcion}*. Ya estamos trabajando en la reparación. Te avisamos cuando esté listo. 🔧`
+      const r = await zapiEnviarTexto(cliente.whatsapp, contenido)
+      if (r.ok) await guardar(contenido, r.messageId)
     }
   } else {
     if (cliente?.whatsapp) {
       const primerNombre = cliente.nombre_apellido.split(' ')[0]
-      await zapiEnviarTexto(
-        cliente.whatsapp,
-        `Hola ${primerNombre}, registramos el rechazo del presupuesto para el equipo *#${equipo.id} - ${descripcion}*.\n\nTenés *15 días corridos* para retirarlo sin costo desde hoy. Pasado ese plazo aplica un cargo de guarda mensual.\n\nCualquier consulta estamos a tu disposición. 🙏`
-      )
+      const contenido = `Hola ${primerNombre}, registramos el rechazo del presupuesto para el equipo *#${equipo.id} - ${descripcion}*.\n\nTenés *15 días corridos* para retirarlo sin costo desde hoy. Pasado ese plazo aplica un cargo de guarda mensual.\n\nCualquier consulta estamos a tu disposición. 🙏`
+      const r = await zapiEnviarTexto(cliente.whatsapp, contenido)
+      if (r.ok) await guardar(contenido, r.messageId)
     }
   }
 

@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Mensaje recibido de un cliente
-      const nombreWa = msg.key?.senderPn?.split('@')[0] || numeroWa
+      const nombreWa = msg.pushName || numeroWa
 
       const { data: cliente } = await supabase
         .from('clientes')
@@ -82,6 +82,15 @@ export async function POST(req: NextRequest) {
       )
 
       if (error) console.error('Error guardando mensaje recibido:', error)
+
+      // Si tenemos un nombre real, actualizar mensajes viejos que solo tenían el número
+      const nombreFinal = cliente?.nombre_apellido || nombreWa
+      if (nombreFinal !== numeroWa) {
+        await supabase.from('mensajes')
+          .update({ nombre_wa: nombreFinal })
+          .eq('numero_wa', numeroWa)
+          .eq('nombre_wa', numeroWa)
+      }
 
       await enviarPushATodos({
         title: `💬 ${cliente?.nombre_apellido || nombreWa}`,
