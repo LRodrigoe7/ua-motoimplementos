@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const RUTAS_PUBLICAS = [
   '/acceso',
+  '/api/acceso',
   '/aprobar',
   '/api/aprobar',
   '/api/webhook',
