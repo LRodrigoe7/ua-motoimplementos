@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: 'ya_respondido' }, { status: 410 })
   }
 
-  const cliente = equipo.clientes as { nombre_apellido: string } | null
+  const cliente = (Array.isArray(equipo.clientes) ? equipo.clientes[0] : equipo.clientes) as { nombre_apellido: string } | null
 
   return NextResponse.json({
     equipoId: equipo.id,
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   await supabase.from('equipos').update({ token_aprobacion: null }).eq('id', equipo.id)
 
   // Notificar al taller por WhatsApp si hay número configurado
-  const cliente = equipo.clientes as { nombre_apellido: string; whatsapp: string } | null
+  const cliente = (Array.isArray(equipo.clientes) ? equipo.clientes[0] : equipo.clientes) as { nombre_apellido: string; whatsapp: string } | null
   const descripcion = [equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ')
 
   if (decision === 'aceptar') {

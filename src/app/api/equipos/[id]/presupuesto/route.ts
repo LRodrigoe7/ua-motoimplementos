@@ -51,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single()
 
   if (equipo?.clientes) {
-    const cliente = equipo.clientes as { nombre_apellido: string; whatsapp: string }
+    const cliente = (Array.isArray(equipo.clientes) ? equipo.clientes[0] : equipo.clientes) as { nombre_apellido: string; whatsapp: string }
     const primerNombre = cliente.nombre_apellido.split(' ')[0]
     const descripcionEquipo = [equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ')
     const montoFormateado = `$${Number(monto).toLocaleString('es-AR')}`
