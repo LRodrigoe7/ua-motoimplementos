@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { EstadoEquipo } from '@/types'
 import { transicionValida } from '@/lib/state-machine'
+import { zapiEnviarTexto } from '@/lib/zapi'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
   const { estado, nota = '' } = await req.json()
 
-  // Verificar estado actual
   const { data: equipo, error: errGet } = await supabase
     .from('equipos')
-    .select('estado_actual')
+    .select('estado_actual, tipo, marca, modelo, clientes(nombre_apellido, whatsapp)')
     .eq('id', id)
     .single()
 
@@ -27,7 +27,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     )
   }
 
-  // Usar la función de PostgreSQL para registrar el cambio
   const { error } = await supabase.rpc('fn_cambiar_estado', {
     p_equipo_id: parseInt(id),
     p_nuevo_estado: nuevoEstado,
@@ -35,5 +34,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Enviar WhatsApp solo al finalizar la reparación
+  if (nuevoEstado === 'Finalizado') {
+    const cliente = (Array.isArray(equipo.clientes) ? equipo.clientes[0] : equipo.clientes) as { nombre_apellido: string; whatsapp: string } | null
+    if (cliente?.whatsapp) {
+      const primerNombre = cliente.nombre_apellido.split(' ')[0]
+      const descripcion = [equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ')
+      await zapiEnviarTexto(
+        cliente.whatsapp,
+        `Hola ${primerNombre}! 🎉\n\nTu equipo *#${id} - ${descripcion}* está listo para retirar.\n\nTenés *15 días corridos* para pasar a buscarlo. Pasado ese plazo se aplica un cargo de guarda mensual.\n\n¡Gracias por elegirnos! 🔧`
+      )
+    }
+  }
+
   return NextResponse.json({ ok: true })
 }
