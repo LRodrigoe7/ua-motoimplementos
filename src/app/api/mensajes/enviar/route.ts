@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-
-function normalizarTelefono(numero: string): string {
-  const digits = numero.replace(/\D/g, '')
-  if (digits.startsWith('549')) return digits
-  if (digits.startsWith('54')) return `549${digits.slice(2)}`
-  return `549${digits}`
-}
+import { normalizarTelefono } from '@/lib/zapi'
 
 export async function POST(req: NextRequest) {
   const { numero_wa, contenido } = await req.json()
@@ -15,46 +9,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
   }
 
-  const instanceId = process.env.ZAPI_INSTANCE_ID
-  const token = process.env.ZAPI_TOKEN
-  const clientToken = process.env.ZAPI_CLIENT_TOKEN
-
-  if (!instanceId || !token || instanceId === 'PEGAR_ID_DE_INSTANCIA_AQUI') {
-    return NextResponse.json({ error: 'Z-API no configurada' }, { status: 503 })
+  const apiKey = process.env.WASENDER_API_KEY
+  if (!apiKey) {
+    return NextResponse.json({ error: 'WasenderAPI no configurada' }, { status: 503 })
   }
 
   const phone = normalizarTelefono(numero_wa)
-  const baseUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}`
 
-  // Iniciar Z-API y Supabase en paralelo
   const [res, supabase] = await Promise.all([
-    fetch(`${baseUrl}/send-text`, {
+    fetch('https://www.wasenderapi.com/api/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(clientToken ? { 'Client-Token': clientToken } : {}),
+        'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ phone, message: contenido }),
+      body: JSON.stringify({ to: `+${phone}`, text: contenido.trim() }),
     }),
     createClient(),
   ])
 
-  const zapiBody = await res.text()
-
   if (!res.ok) {
-    return NextResponse.json({ error: `Error Z-API: ${zapiBody}` }, { status: 500 })
+    const body = await res.text()
+    return NextResponse.json({ error: `Error WasenderAPI: ${body}` }, { status: 500 })
   }
 
-  const zapiData = zapiBody ? JSON.parse(zapiBody) : {}
+  const resData = await res.json()
+  const msgId = resData?.data?.msgId?.toString() || null
 
   const { data: cliente } = await supabase
     .from('clientes')
     .select('id')
-    .or(`whatsapp.eq.${phone},whatsapp.eq.${numero_wa}`)
+    .or(`whatsapp.eq.${phone},whatsapp.eq.+${phone}`)
     .maybeSingle()
 
   await supabase.from('mensajes').insert({
-    whatsapp_id: zapiData?.messageId || null,
+    whatsapp_id: msgId,
     numero_wa: phone,
     nombre_wa: 'Taller',
     cliente_id: cliente?.id || null,

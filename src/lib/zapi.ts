@@ -1,26 +1,31 @@
-function normalizarTelefono(numero: string): string {
+// WasenderAPI helper
+// Docs: https://wasenderapi.com/api-docs
+
+export function normalizarTelefono(numero: string): string {
   const digits = numero.replace(/\D/g, '')
   if (digits.startsWith('549')) return digits
   if (digits.startsWith('54')) return `549${digits.slice(2)}`
   return `549${digits}`
 }
 
+// WasenderAPI requires E.164 format (+549...)
+function toE164(numero: string): string {
+  return `+${normalizarTelefono(numero)}`
+}
+
 export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<boolean> {
-  const instanceId = process.env.ZAPI_INSTANCE_ID
-  const token = process.env.ZAPI_TOKEN
-  const clientToken = process.env.ZAPI_CLIENT_TOKEN
-
-  if (!instanceId || !token || instanceId === 'PEGAR_ID_DE_INSTANCIA_AQUI') return false
-
-  const phone = normalizarTelefono(numero)
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (clientToken) headers['Client-Token'] = clientToken
+  const apiKey = process.env.WASENDER_API_KEY
+  if (!apiKey) return false
 
   try {
-    const res = await fetch(
-      `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`,
-      { method: 'POST', headers, body: JSON.stringify({ phone, message: mensaje }) }
-    )
+    const res = await fetch('https://www.wasenderapi.com/api/send-message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ to: toE164(numero), text: mensaje }),
+    })
     return res.ok
   } catch {
     return false

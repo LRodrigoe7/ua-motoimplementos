@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { enviarPushATodos } from '@/lib/push'
+import { normalizarTelefono } from '@/lib/zapi'
 
-function normalizarTelefono(numero: string): string {
-  const digits = numero.replace(/\D/g, '')
-  if (digits.startsWith('549')) return digits
-  if (digits.startsWith('54')) return `549${digits.slice(2)}`
-  return `549${digits}`
+// Extrae el número limpio desde un JID de WhatsApp (549...@s.whatsapp.net)
+function jidToNumero(jid: string): string {
+  return normalizarTelefono(jid.split('@')[0])
 }
 
 export async function POST(req: NextRequest) {
@@ -14,21 +13,24 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const supabase = createClient()
 
-    // Mensajes del tipo ReceivedCallback (incluye fromMe=true para mensajes enviados desde el celular)
-    if (body.type === 'ReceivedCallback') {
-      if (body.isGroup) return NextResponse.json({ ok: true })
+    const event = body.event as string
 
-      const numeroWa = normalizarTelefono(body.phone as string)
-      const whatsappId = body.messageId as string
-      const contenido: string =
-        body.text?.message ||
-        body.image?.caption ||
-        (body.audio ? '[Audio]' : null) ||
-        (body.document ? '[Documento]' : null) ||
-        '[Mensaje multimedia]'
+    // Mensaje recibido (incluye fromMe=true para mensajes enviados desde el celular)
+    if (event === 'messages.received') {
+      const msg = body.data?.messages
+      if (!msg) return NextResponse.json({ ok: true })
 
-      // Mensaje enviado desde el celular del taller (fromMe=true)
-      if (body.fromMe) {
+      const isGroup = msg.key?.remoteJid?.endsWith('@g.us') ?? false
+      if (isGroup) return NextResponse.json({ ok: true })
+
+      const whatsappId = msg.key?.id as string
+      const fromMe = msg.key?.fromMe as boolean
+      const remoteJid = msg.key?.remoteJid as string
+      const numeroWa = jidToNumero(remoteJid)
+      const contenido: string = msg.messageBody || '[Mensaje multimedia]'
+
+      // Mensaje enviado desde el celular del taller
+      if (fromMe) {
         const { data: existe } = await supabase
           .from('mensajes')
           .select('id')
@@ -52,16 +54,15 @@ export async function POST(req: NextRequest) {
           contenido,
           leido: true,
         })
-
         return NextResponse.json({ ok: true })
       }
 
-      // Mensaje recibido de un cliente (fromMe=false)
-      const nombreWa = body.senderName || numeroWa
+      // Mensaje recibido de un cliente
+      const nombreWa = msg.key?.senderPn?.split('@')[0] || numeroWa
 
       const { data: cliente } = await supabase
         .from('clientes')
-        .select('id, bloqueado')
+        .select('id, bloqueado, nombre_apellido')
         .or(`whatsapp.eq.${numeroWa},whatsapp.eq.+${numeroWa}`)
         .maybeSingle()
 
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
         {
           whatsapp_id: whatsappId,
           numero_wa: numeroWa,
-          nombre_wa: nombreWa,
+          nombre_wa: cliente?.nombre_apellido || nombreWa,
           cliente_id: cliente?.id || null,
           remitente: 'cliente',
           contenido,
@@ -83,33 +84,19 @@ export async function POST(req: NextRequest) {
       if (error) console.error('Error guardando mensaje recibido:', error)
 
       await enviarPushATodos({
-        title: `💬 ${nombreWa}`,
+        title: `💬 ${cliente?.nombre_apellido || nombreWa}`,
         body: contenido.length > 80 ? contenido.slice(0, 80) + '…' : contenido,
         url: '/mensajes',
         tag: `wa-${numeroWa}`,
       })
     }
 
-    // Mensaje enviado desde el WhatsApp real (no desde la app)
-    if (body.type === 'SentCallback') {
-      if (body.isGroup) return NextResponse.json({ ok: true })
+    // Mensaje enviado vía API (deduplicar con el que ya guardamos al enviar)
+    if (event === 'message.sent') {
+      const key = body.data?.key
+      if (!key || key.fromMe === false) return NextResponse.json({ ok: true })
 
-      // Z-API puede usar phone, chatId o to según la versión
-      const rawPhone = body.phone || body.chatId || body.to
-      console.log('[SentCallback] rawPhone=', rawPhone, 'keys=', Object.keys(body).join(','))
-
-      if (!rawPhone) return NextResponse.json({ ok: true })
-
-      const numeroWa = normalizarTelefono(rawPhone as string)
-      const whatsappId = body.messageId as string
-      const contenido: string =
-        body.text?.message ||
-        body.image?.caption ||
-        (body.audio ? '[Audio]' : null) ||
-        (body.document ? '[Documento]' : null) ||
-        '[Mensaje multimedia]'
-
-      // Solo guardar si no existe ya (evita duplicar mensajes enviados por la app)
+      const whatsappId = key.id as string
       const { data: existe } = await supabase
         .from('mensajes')
         .select('id')
@@ -117,6 +104,9 @@ export async function POST(req: NextRequest) {
         .maybeSingle()
 
       if (existe) return NextResponse.json({ ok: true })
+
+      const numeroWa = jidToNumero(key.remoteJid as string)
+      const contenido: string = body.data?.message?.conversation || '[Mensaje]'
 
       const { data: cliente } = await supabase
         .from('clientes')
