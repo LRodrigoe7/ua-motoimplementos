@@ -14,12 +14,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const supabase = createClient()
 
-    // Mensaje recibido de un cliente
+    // Mensajes del tipo ReceivedCallback (incluye fromMe=true para mensajes enviados desde el celular)
     if (body.type === 'ReceivedCallback') {
-      if (body.fromMe || body.isGroup) return NextResponse.json({ ok: true })
+      if (body.isGroup) return NextResponse.json({ ok: true })
 
       const numeroWa = normalizarTelefono(body.phone as string)
-      const nombreWa = body.senderName || numeroWa
       const whatsappId = body.messageId as string
       const contenido: string =
         body.text?.message ||
@@ -27,6 +26,38 @@ export async function POST(req: NextRequest) {
         (body.audio ? '[Audio]' : null) ||
         (body.document ? '[Documento]' : null) ||
         '[Mensaje multimedia]'
+
+      // Mensaje enviado desde el celular del taller (fromMe=true)
+      if (body.fromMe) {
+        const { data: existe } = await supabase
+          .from('mensajes')
+          .select('id')
+          .eq('whatsapp_id', whatsappId)
+          .maybeSingle()
+
+        if (existe) return NextResponse.json({ ok: true })
+
+        const { data: cliente } = await supabase
+          .from('clientes')
+          .select('id')
+          .or(`whatsapp.eq.${numeroWa},whatsapp.eq.+${numeroWa}`)
+          .maybeSingle()
+
+        await supabase.from('mensajes').insert({
+          whatsapp_id: whatsappId,
+          numero_wa: numeroWa,
+          nombre_wa: 'Taller',
+          cliente_id: cliente?.id || null,
+          remitente: 'taller',
+          contenido,
+          leido: true,
+        })
+
+        return NextResponse.json({ ok: true })
+      }
+
+      // Mensaje recibido de un cliente (fromMe=false)
+      const nombreWa = body.senderName || numeroWa
 
       const { data: cliente } = await supabase
         .from('clientes')
