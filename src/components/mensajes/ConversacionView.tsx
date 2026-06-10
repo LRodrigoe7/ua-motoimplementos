@@ -196,12 +196,18 @@ export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, on
                 ? 'bg-blue-600 text-white rounded-br-sm'
                 : 'bg-white text-gray-900 rounded-bl-sm border border-gray-100'
             )}>
-              {m.contenido.startsWith('http') ? (
-                <a href={m.contenido.trim()} target="_blank" rel="noopener noreferrer" className="underline break-all leading-relaxed">
-                  {m.contenido.trim()}
-                </a>
-              ) : (
-                <p className="leading-relaxed whitespace-pre-wrap break-words">{m.contenido}</p>
+              {m.imagen_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={m.imagen_url} alt="imagen" className="rounded-lg max-w-[220px] mb-1" />
+              )}
+              {m.contenido && m.contenido !== '📷 Imagen' && (
+                m.contenido.startsWith('http') ? (
+                  <a href={m.contenido.trim()} target="_blank" rel="noopener noreferrer" className="underline break-all leading-relaxed">
+                    {m.contenido.trim()}
+                  </a>
+                ) : (
+                  <p className="leading-relaxed whitespace-pre-wrap break-words">{m.contenido}</p>
+                )
               )}
               <p className={cn('text-[10px] mt-1 text-right', m.remitente === 'taller' ? 'text-blue-200' : 'text-gray-400')}>
                 {formatDate(m.created_at)}

@@ -27,20 +27,12 @@ export async function POST(req: NextRequest) {
       const whatsappId = msg.key?.id as string
       const fromMe = msg.key?.fromMe as boolean
       const remoteJid = msg.key?.remoteJid as string
-      const tieneMedia = !msg.messageBody && (
-        msg.message?.imageMessage || msg.message?.videoMessage ||
-        msg.message?.documentMessage || msg.message?.audioMessage ||
-        msg.message?.stickerMessage
-      )
-      if (tieneMedia) console.log('[webhook] media msg:', JSON.stringify(body))
+      const imgMsg = msg.message?.imageMessage
+      const imagenB64: string | null = imgMsg?.jpegThumbnail
+        ? `data:${imgMsg.mimetype || 'image/jpeg'};base64,${imgMsg.jpegThumbnail}`
+        : null
 
-      const mediaUrl: string | null =
-        msg.message?.imageMessage?.mediaUrl ||
-        msg.message?.imageMessage?.url ||
-        msg.mediaUrl ||
-        null
-
-      const contenido: string = msg.messageBody || (mediaUrl ? `[imagen:${mediaUrl}]` : '[Mensaje multimedia]')
+      const contenido: string = msg.messageBody || (imgMsg ? '📷 Imagen' : '[Mensaje multimedia]')
 
       const esLid = remoteJid?.endsWith('@lid')
       const rawJidPart = remoteJid?.split('@')[0] ?? ''
@@ -102,6 +94,7 @@ export async function POST(req: NextRequest) {
           cliente_id: cliente?.id || null,
           remitente: 'cliente',
           contenido,
+          imagen_url: imagenB64,
           leido: false,
         },
         { onConflict: 'whatsapp_id', ignoreDuplicates: true }

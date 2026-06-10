@@ -63,6 +63,7 @@ export interface Mensaje {
   nombre_wa: string
   remitente: 'cliente' | 'taller'
   contenido: string
+  imagen_url: string | null
   leido: boolean
   created_at: string
   clientes?: Cliente
