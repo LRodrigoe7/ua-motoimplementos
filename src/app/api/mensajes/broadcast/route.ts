@@ -5,7 +5,7 @@ import { normalizarTelefono } from '@/lib/zapi'
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
 
 export async function POST(req: NextRequest) {
-  const { destinatarios, mensaje } = await req.json()
+  const { destinatarios, mensaje, imagen, imagenMime, imagenNombre } = await req.json()
 
   if (!destinatarios?.length || !mensaje?.trim()) {
     return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'WasenderAPI no configurada' }, { status: 503 })
   }
 
+  const tieneImagen = !!imagen
   const supabase = createClient()
   let enviados = 0
   const errores: string[] = []
@@ -26,6 +27,17 @@ export async function POST(req: NextRequest) {
     const textoPersonalizado = mensaje.replace(/\{nombre\}/gi, primerNombre)
     const phone = normalizarTelefono(dest.numero_wa)
 
+    const body = tieneImagen
+      ? {
+          to: `+${phone}`,
+          image: `data:${imagenMime || 'image/jpeg'};base64,${imagen}`,
+          caption: textoPersonalizado,
+        }
+      : {
+          to: `+${phone}`,
+          text: textoPersonalizado,
+        }
+
     try {
       const res = await fetch('https://www.wasenderapi.com/api/send-message', {
         method: 'POST',
@@ -33,16 +45,20 @@ export async function POST(req: NextRequest) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ to: `+${phone}`, text: textoPersonalizado }),
+        body: JSON.stringify(body),
       })
 
       if (res.ok) {
+        const contenidoDB = tieneImagen
+          ? `📷 ${imagenNombre || 'imagen'}\n${textoPersonalizado}`
+          : textoPersonalizado
+
         await supabase.from('mensajes').insert({
           numero_wa: phone,
           nombre_wa: dest.nombre,
           cliente_id: dest.cliente_id || null,
           remitente: 'taller',
-          contenido: textoPersonalizado,
+          contenido: contenidoDB,
           leido: true,
         })
         enviados++
