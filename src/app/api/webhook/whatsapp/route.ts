@@ -70,16 +70,22 @@ export async function POST(req: NextRequest) {
       // Buscar cliente por teléfono O por whatsapp_lid
       const { data: cliente } = await supabase
         .from('clientes')
-        .select('id, bloqueado, nombre_apellido')
+        .select('id, bloqueado, nombre_apellido, whatsapp')
         .or(`whatsapp.eq.${numeroWa},whatsapp.eq.+${numeroWa},whatsapp_lid.eq.${numeroWa}`)
         .maybeSingle()
 
       if (cliente?.bloqueado) return NextResponse.json({ ok: true })
 
+      // Si encontramos el cliente, usar su número real como numero_wa para que
+      // el mensaje aparezca en la misma conversación (no como número LID separado)
+      const numeroWaFinal = (cliente?.whatsapp && esLid)
+        ? normalizarTelefono(cliente.whatsapp)
+        : numeroWa
+
       const { error } = await supabase.from('mensajes').upsert(
         {
           whatsapp_id: whatsappId,
-          numero_wa: numeroWa,
+          numero_wa: numeroWaFinal,
           nombre_wa: cliente?.nombre_apellido || nombreWa,
           cliente_id: cliente?.id || null,
           remitente: 'cliente',
@@ -91,18 +97,18 @@ export async function POST(req: NextRequest) {
       if (error) console.error('Error guardando mensaje recibido:', error)
 
       const nombreFinal = cliente?.nombre_apellido || nombreWa
-      if (nombreFinal !== numeroWa) {
+      if (nombreFinal !== numeroWaFinal) {
         await supabase.from('mensajes')
           .update({ nombre_wa: nombreFinal })
-          .eq('numero_wa', numeroWa)
-          .eq('nombre_wa', numeroWa)
+          .eq('numero_wa', numeroWaFinal)
+          .eq('nombre_wa', numeroWaFinal)
       }
 
       await enviarPushATodos({
-        title: `💬 ${cliente?.nombre_apellido || nombreWa}`,
+        title: `💬 ${nombreFinal}`,
         body: contenido.length > 80 ? contenido.slice(0, 80) + '…' : contenido,
         url: '/mensajes',
-        tag: `wa-${numeroWa}`,
+        tag: `wa-${numeroWaFinal}`,
       })
     }
 
@@ -115,28 +121,42 @@ export async function POST(req: NextRequest) {
 
       console.log(`[webhook] message.sent remoteJid=${remoteJid} key.id=${whatsappId} body.data.id=${body.data?.id} body.id=${body.id}`)
 
-      // PARTE A — Auto-captura de LID: si enviamos a alguien y el JID de entrega es @lid,
-      // lo guardamos en el cliente para reconocerlo cuando nos responda
+      // Auto-captura de LID: si WasenderAPI entregó a un @lid, guardarlo en el cliente
       if (remoteJid?.endsWith('@lid')) {
         const lidNormalizado = normalizarTelefono(remoteJid.split('@')[0])
 
-        // Intentar por whatsapp_id (key.id)
-        const { data: msgGuardado } = await supabase
-          .from('mensajes')
-          .select('cliente_id')
-          .eq('whatsapp_id', whatsappId)
-          .maybeSingle()
+        let clienteId: string | null = null
 
-        // Fallback: buscar por body.data.id (WasenderAPI msgId) si key.id no matchea
-        let clienteId = msgGuardado?.cliente_id
+        // Intento 1: buscar por whatsapp_id exacto (key.id)
+        const { data: m1 } = await supabase
+          .from('mensajes').select('cliente_id').eq('whatsapp_id', whatsappId).maybeSingle()
+        clienteId = m1?.cliente_id ?? null
+
+        // Intento 2: WasenderAPI a veces pone el msgId en body.data.id
         if (!clienteId && body.data?.id) {
-          const { data: msgPorDataId } = await supabase
+          const { data: m2 } = await supabase
+            .from('mensajes').select('cliente_id').eq('whatsapp_id', body.data.id.toString()).maybeSingle()
+          clienteId = m2?.cliente_id ?? null
+        }
+
+        // Intento 3: matching por tiempo — message.sent llega segundos después del envío.
+        // Buscamos el único cliente al que le mandamos algo en el último minuto.
+        if (!clienteId) {
+          const hace90s = new Date(Date.now() - 90000).toISOString()
+          const { data: recientes } = await supabase
             .from('mensajes')
             .select('cliente_id')
-            .eq('whatsapp_id', body.data.id.toString())
-            .maybeSingle()
-          clienteId = msgPorDataId?.cliente_id
-          if (clienteId) console.log(`[webhook] LID match por body.data.id=${body.data.id}`)
+            .eq('remitente', 'taller')
+            .not('cliente_id', 'is', null)
+            .gte('created_at', hace90s)
+
+          const unicos = [...new Set((recientes ?? []).map(m => m.cliente_id))]
+          if (unicos.length === 1) {
+            clienteId = unicos[0] as string
+            console.log(`[webhook] LID match por recencia: ${lidNormalizado} → cliente ${clienteId}`)
+          } else {
+            console.log(`[webhook] LID no capturado: ${lidNormalizado} — ${unicos.length} clientes recientes, ambiguo`)
+          }
         }
 
         if (clienteId) {
@@ -144,9 +164,16 @@ export async function POST(req: NextRequest) {
             .update({ whatsapp_lid: lidNormalizado })
             .eq('id', clienteId)
             .is('whatsapp_lid', null)
-          console.log(`[webhook] LID capturado automáticamente: ${lidNormalizado} → cliente ${clienteId}`)
-        } else {
-          console.log(`[webhook] LID no pudo capturarse: ${lidNormalizado} — whatsapp_id=${whatsappId} no encontrado en mensajes`)
+
+          // Fusionar mensajes LID al numero_wa real del cliente
+          const { data: cli } = await supabase.from('clientes').select('whatsapp, nombre_apellido').eq('id', clienteId).single()
+          if (cli?.whatsapp) {
+            const numeroReal = normalizarTelefono(cli.whatsapp)
+            await supabase.from('mensajes')
+              .update({ numero_wa: numeroReal, cliente_id: clienteId, nombre_wa: cli.nombre_apellido })
+              .eq('numero_wa', lidNormalizado)
+            console.log(`[webhook] LID capturado y fusionado: ${lidNormalizado} → ${numeroReal} (cliente ${clienteId})`)
+          }
         }
       }
 
