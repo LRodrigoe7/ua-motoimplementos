@@ -41,11 +41,21 @@ function MensajesInner() {
 
   const convSeleccionada = conversaciones.find(c => c.numero_wa === seleccionada)
 
+  // Bloquear scroll del body en mobile cuando hay chat abierto
+  useEffect(() => {
+    if (seleccionada) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [seleccionada])
+
   if (loading) return <LoadingScreen mensaje="Cargando mensajes..." />
 
   return (
     // Layout de dos paneles: lista izquierda + conversación derecha
-    <div className="flex gap-0 -mx-4 -my-4 sm:-my-6 h-[calc(100vh-3.5rem-5rem)] sm:h-[calc(100vh-3.5rem)] bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+    <div className="flex gap-0 -mx-4 -my-4 sm:-my-6 h-[calc(100dvh-5rem)] sm:h-[calc(100dvh-3.5rem)] bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
 
       {/* Panel izquierdo: lista de conversaciones */}
       <div className={`w-full sm:w-80 sm:border-r border-gray-200 flex flex-col ${seleccionada ? 'hidden sm:flex' : 'flex'}`}>
