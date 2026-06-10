@@ -89,7 +89,12 @@ export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, on
 
   const agregarComoCliente = () => {
     setMenuAbierto(false)
-    router.push(`/clientes?nuevo=1&whatsapp=${encodeURIComponent(numero_wa)}&nombre=${encodeURIComponent(nombre)}`)
+    const soloDigitos = numero_wa.replace(/\D/g, '')
+    const esLid = soloDigitos.length > 13
+    const url = esLid
+      ? `/clientes?nuevo=1&nombre=${encodeURIComponent(nombre)}&lid=${encodeURIComponent(numero_wa)}`
+      : `/clientes?nuevo=1&whatsapp=${encodeURIComponent(numero_wa)}&nombre=${encodeURIComponent(nombre)}`
+    router.push(url)
   }
 
   const abrirVincular = async () => {

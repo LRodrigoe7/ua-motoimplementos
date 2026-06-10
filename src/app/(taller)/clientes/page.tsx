@@ -18,6 +18,7 @@ function ClientesInner() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ nombre: '', whatsapp: '', email: '', direccion: '' })
+  const [lidPendiente, setLidPendiente] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [eliminando, setEliminando] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -33,8 +34,13 @@ function ClientesInner() {
   // Abrir modal pre-llenado si viene desde mensajes
   useEffect(() => {
     if (searchParams.get('nuevo') === '1') {
-      const whatsapp = searchParams.get('whatsapp') || ''
+      const whatsappParam = searchParams.get('whatsapp') || ''
       const nombre = searchParams.get('nombre') || ''
+      const lid = searchParams.get('lid') || ''
+      // Si viene con LID, dejar el teléfono vacío para que el usuario lo ingrese manualmente
+      const soloDigitos = whatsappParam.replace(/\D/g, '')
+      const whatsapp = soloDigitos.length > 13 ? '' : whatsappParam
+      if (lid) setLidPendiente(lid)
       setForm(f => ({ ...f, whatsapp, nombre }))
       setModal(true)
     }
@@ -61,7 +67,16 @@ function ClientesInner() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
+      // Si venía de una conversación LID, vincular automáticamente
+      if (lidPendiente && data.id) {
+        await fetch(`/api/clientes/${data.id}/vincular`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ numero_wa: lidPendiente }),
+        })
+      }
       setModal(false)
+      setLidPendiente(null)
       setForm({ nombre: '', whatsapp: '', email: '', direccion: '' })
       await cargar()
     } catch (err) {
@@ -126,10 +141,15 @@ function ClientesInner() {
         </div>
       )}
 
-      <Modal isOpen={modal} onClose={() => { setModal(false); setError('') }} title="Nuevo cliente">
+      <Modal isOpen={modal} onClose={() => { setModal(false); setLidPendiente(null); setError('') }} title="Nuevo cliente">
         <form onSubmit={handleGuardar} className="flex flex-col gap-4">
+          {lidPendiente && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-800">
+              Este contacto usa WhatsApp Business — su número real no está disponible automáticamente. Ingresalo manualmente para poder enviarle mensajes desde el taller.
+            </div>
+          )}
           <Input label="Nombre y apellido *" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
-          <Input label="WhatsApp" type="tel" placeholder="+549..." value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))} />
+          <Input label="WhatsApp" type="tel" placeholder="1136450985" value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))} />
           <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           <Input label="Dirección" value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} />
           {error && <p className="text-sm text-red-600">{error}</p>}
