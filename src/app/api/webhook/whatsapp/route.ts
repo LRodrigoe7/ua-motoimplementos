@@ -32,7 +32,14 @@ export async function POST(req: NextRequest) {
         ? `data:${imgMsg.mimetype || 'image/jpeg'};base64,${imgMsg.jpegThumbnail}`
         : null
 
-      const contenido: string = msg.messageBody || (imgMsg ? '📷 Imagen' : '[Mensaje multimedia]')
+      const tipoMedia = msg.message?.stickerMessage ? '🎭 Sticker'
+        : msg.message?.videoMessage ? '🎥 Video'
+        : msg.message?.audioMessage ? '🎵 Audio'
+        : msg.message?.documentMessage ? '📄 Documento'
+        : imgMsg ? '📷 Imagen'
+        : null
+
+      const contenido: string = msg.messageBody || tipoMedia || '[Mensaje multimedia]'
 
       const esLid = remoteJid?.endsWith('@lid')
       const rawJidPart = remoteJid?.split('@')[0] ?? ''

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Send, Loader2, MoreVertical, Trash2, Ban, UserPlus, Link2, Search } from 'lucide-react'
+import { Send, Loader2, MoreVertical, Trash2, Ban, UserPlus, Link2, Search, ArrowLeft } from 'lucide-react'
 import { Mensaje } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, cn } from '@/lib/utils'
@@ -14,9 +14,10 @@ interface ConversacionViewProps {
   cliente_id: string | null
   onEliminar: () => void
   onBloquear: () => void
+  onVolver?: () => void
 }
 
-export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, onBloquear }: ConversacionViewProps) {
+export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, onBloquear, onVolver }: ConversacionViewProps) {
   const router = useRouter()
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   const [texto, setTexto] = useState('')
@@ -141,6 +142,11 @@ export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, on
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {onVolver && (
+            <button onClick={onVolver} className="sm:hidden p-1.5 -ml-1 hover:bg-gray-100 rounded-lg shrink-0">
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
+            </button>
+          )}
           <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-semibold text-sm shrink-0">
             {nombre.charAt(0).toUpperCase()}
           </div>

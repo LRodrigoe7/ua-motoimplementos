@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Megaphone } from 'lucide-react'
+import { Megaphone } from 'lucide-react'
 import Link from 'next/link'
 import { Conversacion } from '@/types'
 import { InboxList } from '@/components/mensajes/InboxList'
@@ -86,27 +86,20 @@ function MensajesInner() {
       {/* Panel derecho: conversación seleccionada */}
       <div className={`flex-1 flex flex-col ${seleccionada ? 'flex' : 'hidden sm:flex'}`}>
         {seleccionada && convSeleccionada ? (
-          <>
-            {/* Botón volver (mobile) */}
-            <div className="sm:hidden flex items-center gap-2 px-4 py-2 border-b border-gray-100">
-              <button onClick={() => setSeleccionada(null)} className="p-1.5 hover:bg-gray-100 rounded-lg">
-                <ArrowLeft className="h-5 w-5 text-gray-600" />
-              </button>
-            </div>
-            <ConversacionView
-              numero_wa={seleccionada}
-              nombre={convSeleccionada.nombre_wa}
-              cliente_id={convSeleccionada.cliente_id}
-              onEliminar={() => {
-                setConversaciones(prev => prev.filter(c => c.numero_wa !== seleccionada))
-                setSeleccionada(null)
-              }}
-              onBloquear={() => {
-                setConversaciones(prev => prev.filter(c => c.numero_wa !== seleccionada))
-                setSeleccionada(null)
-              }}
-            />
-          </>
+          <ConversacionView
+            numero_wa={seleccionada}
+            nombre={convSeleccionada.nombre_wa}
+            cliente_id={convSeleccionada.cliente_id}
+            onVolver={() => setSeleccionada(null)}
+            onEliminar={() => {
+              setConversaciones(prev => prev.filter(c => c.numero_wa !== seleccionada))
+              setSeleccionada(null)
+            }}
+            onBloquear={() => {
+              setConversaciones(prev => prev.filter(c => c.numero_wa !== seleccionada))
+              setSeleccionada(null)
+            }}
+          />
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
             Seleccioná una conversación
