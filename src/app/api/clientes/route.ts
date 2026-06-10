@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { normalizarTelefono } from '@/lib/zapi'
 
 export async function GET() {
   const supabase = await createClient()
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     .from('clientes')
     .insert({
       nombre_apellido: nombre.trim(),
-      whatsapp: whatsapp?.trim() || '',
+      whatsapp: whatsapp?.trim() ? normalizarTelefono(whatsapp.trim()) : '',
       email: email?.trim() || '',
       direccion: direccion?.trim() || '',
     })
