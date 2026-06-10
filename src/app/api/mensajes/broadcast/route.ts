@@ -29,12 +29,12 @@ export async function POST(req: NextRequest) {
 
     const body = tieneImagen
       ? {
-          to: `+${phone}`,
+          to: `${phone}@s.whatsapp.net`,
           image: `data:${imagenMime || 'image/jpeg'};base64,${imagen}`,
           caption: textoPersonalizado,
         }
       : {
-          to: `+${phone}`,
+          to: `${phone}@s.whatsapp.net`,
           text: textoPersonalizado,
         }
 

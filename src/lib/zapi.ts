@@ -8,9 +8,9 @@ export function normalizarTelefono(numero: string): string {
   return `549${digits}`
 }
 
-// WasenderAPI requires E.164 format (+549...) for individual chats
-function toE164(numero: string): string {
-  return `+${normalizarTelefono(numero)}`
+// WasenderAPI expects JID format for individual chats
+function toJID(numero: string): string {
+  return `${normalizarTelefono(numero)}@s.whatsapp.net`
 }
 
 export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<{ ok: boolean; messageId: string | null }> {
@@ -20,7 +20,7 @@ export async function zapiEnviarTexto(numero: string, mensaje: string): Promise<
     return { ok: false, messageId: null }
   }
 
-  const phone = toE164(numero)
+  const phone = toJID(numero)
   console.log(`[Wasender] Enviando a ${phone}`)
 
   try {
