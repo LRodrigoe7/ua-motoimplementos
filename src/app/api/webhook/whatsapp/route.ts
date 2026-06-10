@@ -35,9 +35,29 @@ export async function POST(req: NextRequest) {
 
       // JID no estándar: intentar campos alternativos o normalizar para lookup por whatsapp_lid
       if (esLid || !esNumeroValido(numeroWa)) {
-        const alternativo = msg.phoneNumber || msg.key?.participant || msg.sender || null
+        console.log('[webhook] LID payload completo:', JSON.stringify(body))
+        // Buscar número real en todos los campos posibles
+        const candidatos = [
+          msg.phoneNumber,
+          msg.sender,
+          msg.key?.participant,
+          msg.contact?.id,
+          msg.contact?.jid,
+          msg.senderJid,
+          msg.from,
+          body.data?.sender,
+          body.data?.senderJid,
+          body.data?.contact?.id,
+        ]
+        const alternativo = candidatos.find(c => {
+          if (!c) return false
+          const digitos = c.toString().replace(/\D/g, '')
+          return digitos.length >= 10 && digitos.length <= 13
+        }) ?? null
+
         if (alternativo) {
           numeroWa = normalizarTelefono(alternativo.toString().split('@')[0])
+          console.log(`[webhook] LID resuelto por campo alternativo: ${alternativo} → ${numeroWa}`)
         }
         // Si no hay alternativo, numeroWa queda como el número normalizado del LID
         // y lo buscaremos por whatsapp_lid
