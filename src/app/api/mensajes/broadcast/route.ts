@@ -48,6 +48,9 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify(body),
       })
 
+      const resBody = await res.text()
+      console.log(`[broadcast] to=+${phone} imagen=${tieneImagen} status=${res.status} body=${resBody}`)
+
       if (res.ok) {
         const contenidoDB = tieneImagen
           ? `📷 ${imagenNombre || 'imagen'}\n${textoPersonalizado}`
