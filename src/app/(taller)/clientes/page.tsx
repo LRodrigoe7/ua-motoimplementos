@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Phone, Mail, Plus, User } from 'lucide-react'
+import { Phone, Mail, Plus, User, Trash2 } from 'lucide-react'
 import { Cliente } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardBody } from '@/components/ui/Card'
@@ -18,6 +18,7 @@ function ClientesInner() {
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState({ nombre: '', whatsapp: '', email: '', direccion: '' })
   const [guardando, setGuardando] = useState(false)
+  const [eliminando, setEliminando] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const cargar = async () => {
@@ -37,6 +38,14 @@ function ClientesInner() {
       setModal(true)
     }
   }, [searchParams])
+
+  const handleEliminar = async (cliente: Cliente) => {
+    if (!confirm(`¿Eliminar a ${cliente.nombre_apellido}? Se borrarán también todos sus equipos e historial.`)) return
+    setEliminando(cliente.id)
+    await fetch(`/api/clientes/${cliente.id}`, { method: 'DELETE' })
+    setEliminando(null)
+    await cargar()
+  }
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,7 +95,16 @@ function ClientesInner() {
           {clientes.map(cliente => (
             <Card key={cliente.id}>
               <CardBody className="flex flex-col gap-2">
-                <p className="font-semibold text-gray-900">{cliente.nombre_apellido}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold text-gray-900">{cliente.nombre_apellido}</p>
+                  <button
+                    onClick={() => handleEliminar(cliente)}
+                    disabled={eliminando === cliente.id}
+                    className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
                 <div className="flex flex-col gap-1.5 text-sm text-gray-600">
                   {cliente.whatsapp && (
                     <a href={`https://wa.me/${cliente.whatsapp.replace(/\D/g, '')}`} className="flex items-center gap-2 hover:text-green-600" target="_blank" rel="noreferrer">
