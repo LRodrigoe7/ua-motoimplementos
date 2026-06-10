@@ -113,22 +113,40 @@ export async function POST(req: NextRequest) {
       const whatsappId = key.id as string
       const remoteJid = key.remoteJid as string
 
+      console.log(`[webhook] message.sent remoteJid=${remoteJid} key.id=${whatsappId} body.data.id=${body.data?.id} body.id=${body.id}`)
+
       // PARTE A — Auto-captura de LID: si enviamos a alguien y el JID de entrega es @lid,
       // lo guardamos en el cliente para reconocerlo cuando nos responda
       if (remoteJid?.endsWith('@lid')) {
         const lidNormalizado = normalizarTelefono(remoteJid.split('@')[0])
+
+        // Intentar por whatsapp_id (key.id)
         const { data: msgGuardado } = await supabase
           .from('mensajes')
           .select('cliente_id')
           .eq('whatsapp_id', whatsappId)
           .maybeSingle()
 
-        if (msgGuardado?.cliente_id) {
+        // Fallback: buscar por body.data.id (WasenderAPI msgId) si key.id no matchea
+        let clienteId = msgGuardado?.cliente_id
+        if (!clienteId && body.data?.id) {
+          const { data: msgPorDataId } = await supabase
+            .from('mensajes')
+            .select('cliente_id')
+            .eq('whatsapp_id', body.data.id.toString())
+            .maybeSingle()
+          clienteId = msgPorDataId?.cliente_id
+          if (clienteId) console.log(`[webhook] LID match por body.data.id=${body.data.id}`)
+        }
+
+        if (clienteId) {
           await supabase.from('clientes')
             .update({ whatsapp_lid: lidNormalizado })
-            .eq('id', msgGuardado.cliente_id)
+            .eq('id', clienteId)
             .is('whatsapp_lid', null)
-          console.log(`[webhook] LID capturado automáticamente: ${lidNormalizado} → cliente ${msgGuardado.cliente_id}`)
+          console.log(`[webhook] LID capturado automáticamente: ${lidNormalizado} → cliente ${clienteId}`)
+        } else {
+          console.log(`[webhook] LID no pudo capturarse: ${lidNormalizado} — whatsapp_id=${whatsappId} no encontrado en mensajes`)
         }
       }
 
