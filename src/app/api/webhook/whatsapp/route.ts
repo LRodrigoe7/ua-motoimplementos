@@ -7,7 +7,6 @@ function jidToNumero(jid: string): string {
   return normalizarTelefono(jid.split('@')[0])
 }
 
-// Un número argentino válido tiene exactamente 13 dígitos (549 + 10 dígitos)
 function esNumeroValido(numero: string): boolean {
   return numero.length <= 13
 }
@@ -16,7 +15,6 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const supabase = createClient()
-
     const event = body.event as string
 
     if (event === 'messages.received') {
@@ -31,64 +29,28 @@ export async function POST(req: NextRequest) {
       const remoteJid = msg.key?.remoteJid as string
       const contenido: string = msg.messageBody || '[Mensaje multimedia]'
 
-      // Detectar JID tipo @lid (WhatsApp Business / número no estándar)
       const esLid = remoteJid?.endsWith('@lid')
+      const rawJidPart = remoteJid?.split('@')[0] ?? ''
       let numeroWa = jidToNumero(remoteJid)
 
+      // JID no estándar: intentar campos alternativos o normalizar para lookup por whatsapp_lid
       if (esLid || !esNumeroValido(numeroWa)) {
-        // Loguear el payload completo para identificar el campo con el número real
-        console.log('[webhook] JID no estándar detectado:', JSON.stringify({
-          remoteJid,
-          numeroWa,
-          pushName: msg.pushName,
-          phoneNumber: msg.phoneNumber,
-          participant: msg.key?.participant,
-          verifiedBizName: msg.verifiedBizName,
-          allKeys: Object.keys(msg),
-        }))
-
-        // Intentar obtener el número real de campos alternativos
-        const alternativo =
-          msg.phoneNumber ||
-          msg.key?.participant ||
-          msg.sender ||
-          null
-
+        const alternativo = msg.phoneNumber || msg.key?.participant || msg.sender || null
         if (alternativo) {
           numeroWa = normalizarTelefono(alternativo.toString().split('@')[0])
-          console.log('[webhook] Usando número alternativo:', numeroWa)
-        } else {
-          // Sin número válido: guardar con el LID como identificador temporal
-          // y buscar cliente por nombre (pushName)
-          const pushName: string = msg.pushName || ''
-          if (pushName) {
-            const { data: clientePorNombre } = await supabase
-              .from('clientes')
-              .select('id, bloqueado, nombre_apellido, whatsapp')
-              .ilike('nombre_apellido', `%${pushName.split(' ')[0]}%`)
-              .maybeSingle()
-
-            if (clientePorNombre?.whatsapp) {
-              numeroWa = normalizarTelefono(clientePorNombre.whatsapp)
-              console.log('[webhook] Cliente encontrado por nombre:', clientePorNombre.nombre_apellido, '→', numeroWa)
-            }
-          }
         }
+        // Si no hay alternativo, numeroWa queda como el número normalizado del LID
+        // y lo buscaremos por whatsapp_lid
       }
 
       if (fromMe) {
         const { data: existe } = await supabase
-          .from('mensajes')
-          .select('id')
-          .eq('whatsapp_id', whatsappId)
-          .maybeSingle()
-
+          .from('mensajes').select('id').eq('whatsapp_id', whatsappId).maybeSingle()
         if (existe) return NextResponse.json({ ok: true })
 
         const { data: cliente } = await supabase
-          .from('clientes')
-          .select('id')
-          .or(`whatsapp.eq.${numeroWa},whatsapp.eq.+${numeroWa}`)
+          .from('clientes').select('id')
+          .or(`whatsapp.eq.${numeroWa},whatsapp.eq.+${numeroWa},whatsapp_lid.eq.${numeroWa}`)
           .maybeSingle()
 
         await supabase.from('mensajes').insert({
@@ -103,12 +65,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true })
       }
 
-      const nombreWa = msg.pushName || numeroWa
+      const nombreWa = msg.pushName || rawJidPart
 
+      // Buscar cliente por teléfono O por whatsapp_lid
       const { data: cliente } = await supabase
         .from('clientes')
         .select('id, bloqueado, nombre_apellido')
-        .or(`whatsapp.eq.${numeroWa},whatsapp.eq.+${numeroWa}`)
+        .or(`whatsapp.eq.${numeroWa},whatsapp.eq.+${numeroWa},whatsapp_lid.eq.${numeroWa}`)
         .maybeSingle()
 
       if (cliente?.bloqueado) return NextResponse.json({ ok: true })
@@ -125,7 +88,6 @@ export async function POST(req: NextRequest) {
         },
         { onConflict: 'whatsapp_id', ignoreDuplicates: true }
       )
-
       if (error) console.error('Error guardando mensaje recibido:', error)
 
       const nombreFinal = cliente?.nombre_apellido || nombreWa
@@ -149,21 +111,38 @@ export async function POST(req: NextRequest) {
       if (!key || key.fromMe === false) return NextResponse.json({ ok: true })
 
       const whatsappId = key.id as string
-      const { data: existe } = await supabase
-        .from('mensajes')
-        .select('id')
-        .eq('whatsapp_id', whatsappId)
-        .maybeSingle()
+      const remoteJid = key.remoteJid as string
 
+      // PARTE A — Auto-captura de LID: si enviamos a alguien y el JID de entrega es @lid,
+      // lo guardamos en el cliente para reconocerlo cuando nos responda
+      if (remoteJid?.endsWith('@lid')) {
+        const lidNormalizado = normalizarTelefono(remoteJid.split('@')[0])
+        const { data: msgGuardado } = await supabase
+          .from('mensajes')
+          .select('cliente_id')
+          .eq('whatsapp_id', whatsappId)
+          .maybeSingle()
+
+        if (msgGuardado?.cliente_id) {
+          await supabase.from('clientes')
+            .update({ whatsapp_lid: lidNormalizado })
+            .eq('id', msgGuardado.cliente_id)
+            .is('whatsapp_lid', null)
+          console.log(`[webhook] LID capturado automáticamente: ${lidNormalizado} → cliente ${msgGuardado.cliente_id}`)
+        }
+      }
+
+      // Dedup — si ya lo guardó la ruta, no duplicar
+      const { data: existe } = await supabase
+        .from('mensajes').select('id').eq('whatsapp_id', whatsappId).maybeSingle()
       if (existe) return NextResponse.json({ ok: true })
 
-      const numeroWa = jidToNumero(key.remoteJid as string)
+      const numeroWa = jidToNumero(remoteJid)
       const contenido: string = body.data?.message?.conversation || '[Mensaje]'
 
       const { data: cliente } = await supabase
-        .from('clientes')
-        .select('id')
-        .or(`whatsapp.eq.${numeroWa},whatsapp.eq.+${numeroWa}`)
+        .from('clientes').select('id')
+        .or(`whatsapp.eq.${numeroWa},whatsapp.eq.+${numeroWa},whatsapp_lid.eq.${numeroWa}`)
         .maybeSingle()
 
       await supabase.from('mensajes').insert({
