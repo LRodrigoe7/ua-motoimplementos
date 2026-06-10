@@ -55,7 +55,7 @@ function MensajesInner() {
 
   return (
     // Layout de dos paneles: lista izquierda + conversación derecha
-    <div className="flex gap-0 -mx-4 -my-4 sm:-my-6 h-[calc(100dvh-5rem)] sm:h-[calc(100dvh-3.5rem)] bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+    <div className="flex gap-0 fixed inset-x-0 top-0 bottom-[5rem] sm:static sm:inset-auto sm:-mx-4 sm:-my-6 sm:h-[calc(100vh-3.5rem)] bg-white overflow-hidden sm:rounded-xl sm:border sm:border-gray-200 sm:shadow-sm">
 
       {/* Panel izquierdo: lista de conversaciones */}
       <div className={`w-full sm:w-80 sm:border-r border-gray-200 flex flex-col ${seleccionada ? 'hidden sm:flex' : 'flex'}`}>
