@@ -27,7 +27,20 @@ export async function POST(req: NextRequest) {
       const whatsappId = msg.key?.id as string
       const fromMe = msg.key?.fromMe as boolean
       const remoteJid = msg.key?.remoteJid as string
-      const contenido: string = msg.messageBody || '[Mensaje multimedia]'
+      const tieneMedia = !msg.messageBody && (
+        msg.message?.imageMessage || msg.message?.videoMessage ||
+        msg.message?.documentMessage || msg.message?.audioMessage ||
+        msg.message?.stickerMessage
+      )
+      if (tieneMedia) console.log('[webhook] media msg:', JSON.stringify(body))
+
+      const mediaUrl: string | null =
+        msg.message?.imageMessage?.mediaUrl ||
+        msg.message?.imageMessage?.url ||
+        msg.mediaUrl ||
+        null
+
+      const contenido: string = msg.messageBody || (mediaUrl ? `[imagen:${mediaUrl}]` : '[Mensaje multimedia]')
 
       const esLid = remoteJid?.endsWith('@lid')
       const rawJidPart = remoteJid?.split('@')[0] ?? ''
