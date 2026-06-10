@@ -1,4 +1,4 @@
-// Service Worker — MotoTaller
+// Service Worker — MotoTaller v2
 // Maneja notificaciones push cuando la app está en segundo plano o cerrada
 
 self.addEventListener('install', () => self.skipWaiting())
