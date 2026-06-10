@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Phone, Mail, Plus, User, Trash2 } from 'lucide-react'
+import { normalizarTelefono } from '@/lib/zapi'
 import { Cliente } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardBody } from '@/components/ui/Card'
@@ -107,7 +108,7 @@ function ClientesInner() {
                 </div>
                 <div className="flex flex-col gap-1.5 text-sm text-gray-600">
                   {cliente.whatsapp && (
-                    <a href={`https://wa.me/${cliente.whatsapp.replace(/\D/g, '')}`} className="flex items-center gap-2 hover:text-green-600" target="_blank" rel="noreferrer">
+                    <a href={`https://wa.me/${normalizarTelefono(cliente.whatsapp)}`} className="flex items-center gap-2 hover:text-green-600" target="_blank" rel="noreferrer">
                       <Phone className="h-3.5 w-3.5" />
                       {cliente.whatsapp}
                     </a>
