@@ -1,6 +1,6 @@
 import { EstadoEquipo } from '@/types'
 
-const MONTO_APROBACION = 100_000
+const MONTO_APROBACION = parseInt(process.env.NEXT_PUBLIC_MONTO_UMBRAL_APROBACION || '100000', 10)
 const DIAS_RETIRO_GRATUITO = 15
 const MONTO_GUARDA_MENSUAL = 20_000
 const MESES_MAX_GUARDA = 6

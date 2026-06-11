@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requiereAprobacion } from '@/lib/state-machine'
+import { requiereAprobacion, MONTO_APROBACION } from '@/lib/state-machine'
 import { generarTokenAprobacion } from '@/lib/utils'
 import { zapiEnviarTexto, normalizarTelefono } from '@/lib/zapi'
 
@@ -38,8 +38,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     p_equipo_id: parseInt(id),
     p_nuevo_estado: nuevoEstado,
     p_nota: necesitaAprobacion
-      ? 'Enviado link de aprobación al cliente (monto > $100.000)'
-      : 'Aprobado automáticamente (monto <= $100.000)',
+      ? `Enviado link de aprobación al cliente (monto > $${MONTO_APROBACION.toLocaleString('es-AR')})`
+      : `Aprobado automáticamente (monto <= $${MONTO_APROBACION.toLocaleString('es-AR')})`,
   })
   if (errEstado) return NextResponse.json({ error: errEstado.message }, { status: 500 })
 
