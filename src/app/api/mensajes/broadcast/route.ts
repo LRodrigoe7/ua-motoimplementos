@@ -62,40 +62,55 @@ export async function POST(req: NextRequest) {
     const textoPersonalizado = mensaje.replace(/\{nombre\}/gi, primerNombre)
     const phone = normalizarTelefono(dest.numero_wa)
 
-    const body = imagenUrl
-      ? { to: `${phone}@s.whatsapp.net`, imageUrl: imagenUrl, caption: textoPersonalizado }
-      : { to: `${phone}@s.whatsapp.net`, text: textoPersonalizado }
-
     try {
-      const res = await fetch('https://www.wasenderapi.com/api/send-message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(body),
-      })
-
-      const resBody = await res.text()
-      console.log(`[broadcast] to=+${phone} imagen=${!!imagenUrl} status=${res.status} body=${resBody}`)
-
-      if (res.ok) {
-        const contenidoDB = imagenUrl
-          ? `📷 ${imagenNombre || 'imagen'}\n${textoPersonalizado}`
-          : textoPersonalizado
-
-        await supabase.from('mensajes').insert({
-          numero_wa: phone,
-          nombre_wa: dest.nombre,
-          cliente_id: dest.cliente_id || null,
-          remitente: 'taller',
-          contenido: contenidoDB,
-          leido: true,
-        })
-        enviados++
-      } else {
-        errores.push(dest.nombre)
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
       }
+      const to = `${phone}@s.whatsapp.net`
+
+      // Si hay imagen: enviar imagen primero, luego texto por separado
+      if (imagenUrl) {
+        const resImg = await fetch('https://www.wasenderapi.com/api/send-message', {
+          method: 'POST', headers,
+          body: JSON.stringify({ to, imageUrl: imagenUrl }),
+        })
+        const resImgBody = await resImg.text()
+        console.log(`[broadcast] img to=+${phone} status=${resImg.status} body=${resImgBody}`)
+        if (!resImg.ok) { errores.push(dest.nombre); continue }
+
+        await delay(800)
+
+        const resTxt = await fetch('https://www.wasenderapi.com/api/send-message', {
+          method: 'POST', headers,
+          body: JSON.stringify({ to, text: textoPersonalizado }),
+        })
+        const resTxtBody = await resTxt.text()
+        console.log(`[broadcast] txt to=+${phone} status=${resTxt.status} body=${resTxtBody}`)
+        if (!resTxt.ok) { errores.push(dest.nombre); continue }
+      } else {
+        const res = await fetch('https://www.wasenderapi.com/api/send-message', {
+          method: 'POST', headers,
+          body: JSON.stringify({ to, text: textoPersonalizado }),
+        })
+        const resBody = await res.text()
+        console.log(`[broadcast] to=+${phone} status=${res.status} body=${resBody}`)
+        if (!res.ok) { errores.push(dest.nombre); continue }
+      }
+
+      const contenidoDB = imagenUrl
+        ? `📷 ${imagenNombre || 'imagen'}\n${textoPersonalizado}`
+        : textoPersonalizado
+
+      await supabase.from('mensajes').insert({
+        numero_wa: phone,
+        nombre_wa: dest.nombre,
+        cliente_id: dest.cliente_id || null,
+        remitente: 'taller',
+        contenido: contenidoDB,
+        leido: true,
+      })
+      enviados++
     } catch {
       errores.push(dest.nombre)
     }
