@@ -364,5 +364,3 @@ Para escalar más allá de estos umbrales, la arquitectura correcta es sacar el 
 - **Backup automático:** Export periódico de la DB a un bucket de Storage como JSON o CSV
 
 ---
-
-*Sistema desarrollado con Claude Code (Anthropic) — arquitectura, implementación y resolución de problemas de producción en tiempo real.*
