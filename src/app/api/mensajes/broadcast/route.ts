@@ -16,10 +16,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'WasenderAPI no configurada' }, { status: 503 })
   }
 
-  const tieneImagen = !!imagen
   const supabase = createClient()
   let enviados = 0
   const errores: string[] = []
+
+  // Subir imagen a Supabase Storage para obtener URL pública (WasenderAPI no acepta base64)
+  let imagenUrl: string | null = null
+  let imagenPath: string | null = null
+
+  if (imagen) {
+    try {
+      // Crear bucket si no existe
+      await supabase.storage.createBucket('broadcast-temp', { public: true })
+    } catch {
+      // Ya existe, continuar
+    }
+
+    try {
+      const ext = (imagenNombre?.split('.').pop() || 'jpg').toLowerCase()
+      const fileName = `img_${Date.now()}.${ext}`
+      const buffer = Buffer.from(imagen, 'base64')
+
+      const { error: uploadError } = await supabase.storage
+        .from('broadcast-temp')
+        .upload(fileName, buffer, { contentType: imagenMime || 'image/jpeg', upsert: false })
+
+      if (uploadError) {
+        console.error('[broadcast] Error subiendo imagen:', uploadError)
+        return NextResponse.json({ error: 'Error al subir la imagen: ' + uploadError.message }, { status: 500 })
+      }
+
+      const { data: urlData } = supabase.storage.from('broadcast-temp').getPublicUrl(fileName)
+      imagenUrl = urlData.publicUrl
+      imagenPath = fileName
+      console.log(`[broadcast] imagen subida: ${imagenUrl}`)
+    } catch (err) {
+      console.error('[broadcast] Error procesando imagen:', err)
+      return NextResponse.json({ error: 'Error procesando imagen' }, { status: 500 })
+    }
+  }
 
   for (let i = 0; i < destinatarios.length; i++) {
     const dest = destinatarios[i]
@@ -27,16 +62,9 @@ export async function POST(req: NextRequest) {
     const textoPersonalizado = mensaje.replace(/\{nombre\}/gi, primerNombre)
     const phone = normalizarTelefono(dest.numero_wa)
 
-    const body = tieneImagen
-      ? {
-          to: `${phone}@s.whatsapp.net`,
-          image: `data:${imagenMime || 'image/jpeg'};base64,${imagen}`,
-          caption: textoPersonalizado,
-        }
-      : {
-          to: `${phone}@s.whatsapp.net`,
-          text: textoPersonalizado,
-        }
+    const body = imagenUrl
+      ? { to: `${phone}@s.whatsapp.net`, imageUrl: imagenUrl, caption: textoPersonalizado }
+      : { to: `${phone}@s.whatsapp.net`, text: textoPersonalizado }
 
     try {
       const res = await fetch('https://www.wasenderapi.com/api/send-message', {
@@ -49,10 +77,10 @@ export async function POST(req: NextRequest) {
       })
 
       const resBody = await res.text()
-      console.log(`[broadcast] to=+${phone} imagen=${tieneImagen} status=${res.status} body=${resBody}`)
+      console.log(`[broadcast] to=+${phone} imagen=${!!imagenUrl} status=${res.status} body=${resBody}`)
 
       if (res.ok) {
-        const contenidoDB = tieneImagen
+        const contenidoDB = imagenUrl
           ? `📷 ${imagenNombre || 'imagen'}\n${textoPersonalizado}`
           : textoPersonalizado
 
@@ -73,6 +101,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (i < destinatarios.length - 1) await delay(1200)
+  }
+
+  // Limpiar imagen temporal
+  if (imagenPath) {
+    await supabase.storage.from('broadcast-temp').remove([imagenPath])
+    console.log(`[broadcast] imagen temporal eliminada: ${imagenPath}`)
   }
 
   return NextResponse.json({ enviados, errores })
