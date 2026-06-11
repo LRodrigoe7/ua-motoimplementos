@@ -103,11 +103,8 @@ export async function POST(req: NextRequest) {
     if (i < destinatarios.length - 1) await delay(1200)
   }
 
-  // Limpiar imagen temporal
-  if (imagenPath) {
-    await supabase.storage.from('broadcast-temp').remove([imagenPath])
-    console.log(`[broadcast] imagen temporal eliminada: ${imagenPath}`)
-  }
+  // No borramos el archivo aquí: WasenderAPI descarga la imagen de forma async
+  // después de devolver 200. Supabase Storage limpia archivos viejos por política.
 
   return NextResponse.json({ enviados, errores })
 }

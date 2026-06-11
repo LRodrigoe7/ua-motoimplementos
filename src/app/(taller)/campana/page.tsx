@@ -84,6 +84,12 @@ export default function CampanaPage() {
       return
     }
 
+    const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!tiposPermitidos.includes(file.type)) {
+      alert('Formato no soportado. Usá JPG, PNG, WebP o GIF.')
+      return
+    }
+
     setImagenMime(file.type || 'image/jpeg')
     setImagenNombre(file.name)
 
@@ -347,7 +353,7 @@ export default function CampanaPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/gif"
           className="hidden"
           onChange={handleImageSelect}
         />
