@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { enviarPushATodos } from '@/lib/push'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   // Buscar el equipo por token
   const { data: equipo, error: errGet } = await supabase
     .from('equipos')
-    .select('id, estado_actual, monto_presupuesto')
+    .select('id, estado_actual, monto_presupuesto, clientes(nombre_apellido)')
     .eq('token_aprobacion', token)
     .single()
 
@@ -47,7 +48,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     })
   }
 
-  // TODO: notificar al taller (WhatsApp/email interno)
+  const nombreCliente = (equipo.clientes as { nombre_apellido: string } | null)?.nombre_apellido ?? 'Cliente'
+  const monto = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(equipo.monto_presupuesto)
+
+  await enviarPushATodos({
+    title: decision === 'aceptar' ? '✅ Presupuesto aprobado' : '❌ Presupuesto rechazado',
+    body: `${nombreCliente} — Equipo #${equipo.id} · ${monto}`,
+    url: `/equipos/${equipo.id}`,
+    tag: `aprobacion-${equipo.id}`,
+  })
 
   return NextResponse.json({ ok: true, estado: nuevoEstado })
 }

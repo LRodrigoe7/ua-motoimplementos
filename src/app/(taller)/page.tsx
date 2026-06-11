@@ -35,6 +35,8 @@ export default async function DashboardPage() {
     enReparacion: equipos.filter(e => e.estado_actual === 'En Reparación').length,
     esperando: equipos.filter(e => e.estado_actual === 'Esperando Aprobación').length,
     finalizados: equipos.filter(e => e.estado_actual === 'Finalizado').length,
+    aprobados: equipos.filter(e => e.estado_actual === 'Aceptado').length,
+    rechazados: equipos.filter(e => e.estado_actual === 'Rechazado').length,
   }
 
   return (
@@ -58,6 +60,8 @@ export default async function DashboardPage() {
         <StatCard label="En Reparación" value={contadores.enReparacion} color="bg-orange-50" />
         <StatCard label="Esperando aprobación" value={contadores.esperando} color="bg-yellow-50" alert={contadores.esperando > 0} />
         <StatCard label="Listos para retirar" value={contadores.finalizados} color="bg-purple-50" alert={contadores.finalizados > 0} />
+        <StatCard label="Aprobados" value={contadores.aprobados} color="bg-green-50" />
+        <StatCard label="Rechazados" value={contadores.rechazados} color="bg-red-50" alert={contadores.rechazados > 0} />
       </div>
 
       {urgentes.length > 0 && (
