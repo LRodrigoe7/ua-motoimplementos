@@ -41,6 +41,13 @@ function MensajesInner() {
 
   const convSeleccionada = conversaciones.find(c => c.numero_wa === seleccionada)
 
+  const handleSeleccionar = (numero: string) => {
+    setSeleccionada(numero)
+    setConversaciones(prev => prev.map(c =>
+      c.numero_wa === numero ? { ...c, no_leidos: 0 } : c
+    ))
+  }
+
   // Bloquear scroll del body en mobile cuando hay chat abierto
   useEffect(() => {
     if (seleccionada) {
@@ -78,7 +85,7 @@ function MensajesInner() {
           <InboxList
             conversaciones={conversaciones}
             seleccionada={seleccionada}
-            onSeleccionar={setSeleccionada}
+            onSeleccionar={handleSeleccionar}
           />
         </div>
       </div>
