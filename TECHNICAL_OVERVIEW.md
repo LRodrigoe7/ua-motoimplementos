@@ -27,32 +27,30 @@ Sistema SaaS privado desarrollado para un taller de reparaciones de motoimplemen
 
 ## 3. Arquitectura General
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    VERCEL (Edge/Serverless)          │
-│                                                     │
-│  ┌──────────────────┐    ┌────────────────────────┐ │
-│  │  Next.js Frontend│    │   API Routes           │ │
-│  │  (App Router)    │    │  /api/equipos          │ │
-│  │                  │    │  /api/clientes         │ │
-│  │  PWA instalable  │    │  /api/mensajes         │ │
-│  │  mobile-first    │    │  /api/mensajes/enviar  │ │
-│  └──────────────────┘    │  /api/mensajes/broadcast│ │
-│                          │  /api/webhook/whatsapp  │ │
-│                          │  /api/aprobar/[token]  │ │
-│                          └────────────────────────┘ │
-└─────────────────────────────────────────────────────┘
-         │                           │
-         ▼                           ▼
-┌─────────────────┐        ┌──────────────────────┐
-│    SUPABASE      │        │    WASENDERAPI       │
-│                 │        │                      │
-│  PostgreSQL     │        │  WhatsApp Web        │
-│  Realtime WS    │        │  (Baileys library)   │
-│  Storage        │        │                      │
-│  Auth           │        │  Webhooks →          │
-│                 │        │  /api/webhook/       │
-└─────────────────┘        └──────────────────────┘
+```mermaid
+graph TD
+    subgraph VERCEL["Vercel (Edge / Serverless)"]
+        FE["Next.js Frontend\nPWA · App Router · TypeScript"]
+        API["API Routes\n/api/equipos\n/api/clientes\n/api/mensajes\n/api/mensajes/broadcast\n/api/webhook/whatsapp\n/api/aprobar/token"]
+    end
+
+    subgraph SUPABASE["Supabase"]
+        DB[(PostgreSQL)]
+        RT[Realtime WebSockets]
+        ST[Storage]
+    end
+
+    subgraph WASENDER["WasenderAPI (Baileys)"]
+        WA[WhatsApp Web Bridge]
+    end
+
+    FE -- "fetch API" --> API
+    API -- "supabase-js" --> DB
+    DB -- "postgres_changes" --> RT
+    RT -- "WebSocket" --> FE
+    API -- "PUT imagen" --> ST
+    API -- "POST send-message" --> WA
+    WA -- "webhook POST" --> API
 ```
 
 ### Flujo de datos en tiempo real
@@ -72,17 +70,22 @@ const channel = supabase
 
 El núcleo del sistema es una máquina de estados estricta sobre el campo `estado_actual` de la tabla `equipos`. Las transiciones son irreversibles y controladas exclusivamente por el servidor.
 
-```
-Ingreso → Presupuestado → [si monto ≤ umbral] → En Reparación
-                        → [si monto > umbral] → Esperando Aprobación
-                                              ↓              ↓
-                                           Aceptado      Rechazado
-                                              ↓              ↓
-                                        En Reparación   (timer 15 días)
-                                              ↓
-                                          Finalizado → (timer 15 días)
-                                              ↓
-                                           Entregado
+```mermaid
+graph TD
+    Ingreso --> Presupuestado
+    Presupuestado -->|"monto ≤ umbral\n(aprobación automática)"| EnRep[En Reparación]
+    Presupuestado -->|"monto > umbral\n(link de aprobación al cliente)"| EspAp[Esperando Aprobación]
+    EspAp --> Aceptado
+    EspAp --> Rechazado
+    Aceptado --> EnRep
+    Rechazado -->|"Timer 15 días\nluego canon $20k/mes"| Entregado
+    EnRep --> Finalizado
+    Finalizado -->|"Timer 15 días\nluego canon $20k/mes"| Entregado
+
+    style Entregado fill:#16a34a,color:#fff
+    style Rechazado fill:#dc2626,color:#fff
+    style EnRep fill:#2563eb,color:#fff
+    style Finalizado fill:#9333ea,color:#fff
 ```
 
 **Umbral de aprobación configurable:** el monto a partir del cual se requiere aprobación explícita del cliente (inicialmente $100.000) es un parámetro de entorno `NEXT_PUBLIC_MONTO_UMBRAL_APROBACION`, no un valor hardcodeado. El dueño del taller puede ajustarlo sin necesidad de modificar código ni hacer un nuevo deploy — un detalle crítico en un contexto inflacionario donde $100.000 puede representar hoy un service básico y mañana ni el diagnóstico.
