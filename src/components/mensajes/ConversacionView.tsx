@@ -193,11 +193,14 @@ export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, on
       </div>
 
       {/* Mensajes */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 bg-gray-50">
-        {mensajes.map(m => (
-          <div key={m.id} className={cn('flex', m.remitente === 'taller' ? 'justify-end' : 'justify-start')}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 space-y-2 bg-gray-50">
+        {mensajes.map(m => {
+          // Normalizar formato viejo [imagen:https://...] a emoji
+          const contenido = m.contenido?.startsWith('[imagen:http') ? '📷 Imagen' : m.contenido
+          return (
+          <div key={m.id} className={cn('flex min-w-0', m.remitente === 'taller' ? 'justify-end' : 'justify-start')}>
             <div className={cn(
-              'max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm',
+              'max-w-[80%] min-w-0 rounded-2xl px-3 py-2 text-sm shadow-sm',
               m.remitente === 'taller'
                 ? 'bg-blue-600 text-white rounded-br-sm'
                 : 'bg-white text-gray-900 rounded-bl-sm border border-gray-100'
@@ -206,21 +209,25 @@ export function ConversacionView({ numero_wa, nombre, cliente_id, onEliminar, on
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={m.imagen_url} alt="imagen" className="rounded-lg max-w-[220px] mb-1" />
               )}
-              {m.contenido && m.contenido !== '📷 Imagen' && (
-                m.contenido.startsWith('http') ? (
-                  <a href={m.contenido.trim()} target="_blank" rel="noopener noreferrer" className="underline break-all leading-relaxed">
-                    {m.contenido.trim()}
+              {contenido && contenido !== '📷 Imagen' && (
+                contenido.startsWith('http') ? (
+                  <a href={contenido.trim()} target="_blank" rel="noopener noreferrer" className="underline break-all leading-relaxed">
+                    {contenido.trim()}
                   </a>
                 ) : (
-                  <p className="leading-relaxed whitespace-pre-wrap break-words">{m.contenido}</p>
+                  <p className="leading-relaxed whitespace-pre-wrap break-all">{contenido}</p>
                 )
+              )}
+              {contenido === '📷 Imagen' && !m.imagen_url && (
+                <p className="leading-relaxed">📷 Imagen</p>
               )}
               <p className={cn('text-[10px] mt-1 text-right', m.remitente === 'taller' ? 'text-blue-200' : 'text-gray-400')}>
                 {formatDate(m.created_at)}
               </p>
             </div>
           </div>
-        ))}
+          )
+        })}
         <div ref={bottomRef} />
       </div>
 
