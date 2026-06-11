@@ -1,4 +1,4 @@
-// Service Worker — MotoTaller v2
+// Service Worker — UA Motoimplementos v2
 // Maneja notificaciones push cuando la app está en segundo plano o cerrada
 
 self.addEventListener('install', () => self.skipWaiting())
@@ -11,7 +11,7 @@ self.addEventListener('push', event => {
   const data = event.data.json()
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'MotoTaller', {
+    self.registration.showNotification(data.title || 'UA Motoimplementos', {
       body: data.body || '',
       icon: '/icon-192.png',
       badge: '/icon-192.png',

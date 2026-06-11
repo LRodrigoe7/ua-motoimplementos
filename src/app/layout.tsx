@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'MotoTaller — Gestión de Reparaciones',
+  title: 'UA Motoimplementos — Gestión de Reparaciones',
   description: 'Sistema interno de gestión para taller de motoimplementos',
   manifest: '/manifest.json',
   icons: {
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'MotoTaller',
+    title: 'UA Motoimplementos',
     startupImage: '/icon-512.png',
   },
 }

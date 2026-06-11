@@ -39,15 +39,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Si aceptó, pasa automáticamente a En Reparación
-  if (decision === 'aceptar') {
-    await supabase.rpc('fn_cambiar_estado', {
-      p_equipo_id: equipo.id,
-      p_nuevo_estado: 'En Reparación',
-      p_nota: 'Iniciada reparación tras aprobación del cliente',
-    })
-  }
-
   const nombreCliente = (equipo.clientes as { nombre_apellido: string }[] | null)?.[0]?.nombre_apellido ?? 'Cliente'
   const monto = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(equipo.monto_presupuesto)
 

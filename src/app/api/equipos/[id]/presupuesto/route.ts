@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requiereAprobacion, MONTO_APROBACION } from '@/lib/state-machine'
 import { generarTokenAprobacion } from '@/lib/utils'
 import { zapiEnviarTexto, normalizarTelefono } from '@/lib/zapi'
+import { saludoHora } from '@/lib/utils'
 
 export const maxDuration = 30
 
@@ -75,14 +76,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (necesitaAprobacion) {
       const linkAprobacion = `${appUrl}/aprobacion/${token}`
-      const mensajeInfo = `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado y el presupuesto de reparación es de *${montoFormateado}*.\n\nIngresá al siguiente link para *aprobar o rechazar* la reparación. Tenés 15 días para decidir.`
+      const mensajeInfo = `${saludoHora()} ${primerNombre}! 👋\n\nTe contactamos de *UA Motoimplementos*.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado y el presupuesto de reparación es de *${montoFormateado}*.\n\nIngresá al siguiente link para *aprobar o rechazar* la reparación. Tenés *7 días* para decidir.`
       const r1 = await zapiEnviarTexto(cliente.whatsapp, mensajeInfo)
       if (r1.ok) await guardar(mensajeInfo, r1.messageId)
       await new Promise(r => setTimeout(r, 2000))
       const r2 = await zapiEnviarTexto(cliente.whatsapp, linkAprobacion)
       if (r2.ok) await guardar(linkAprobacion, r2.messageId)
     } else {
-      const mensajeAuto = `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado. El presupuesto es de *${montoFormateado}* y quedó aprobado automáticamente.\n\n¡Ya estamos trabajando en la reparación! Te avisamos cuando esté listo. 🔧`
+      const mensajeAuto = `${saludoHora()} ${primerNombre}! 👋\n\nTe contactamos de *UA Motoimplementos*.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado. El presupuesto es de *${montoFormateado}* y quedó aprobado automáticamente.\n\n¡Ya estamos trabajando en la reparación! Te avisamos cuando esté listo. 🔧`
       const r = await zapiEnviarTexto(cliente.whatsapp, mensajeAuto)
       if (r.ok) await guardar(mensajeAuto, r.messageId)
     }

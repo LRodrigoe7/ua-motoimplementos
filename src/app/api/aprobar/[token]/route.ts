@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { zapiEnviarTexto, normalizarTelefono } from '@/lib/zapi'
+import { saludoHora } from '@/lib/utils'
 
 // GET /api/aprobar/[token] → datos del presupuesto para mostrar al cliente
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
@@ -81,23 +82,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   }
 
   if (decision === 'aceptar') {
-    // Trigger: el estado Aceptado dispara cambio a En Reparación
-    await supabase.rpc('fn_cambiar_estado', {
-      p_equipo_id: equipo.id,
-      p_nuevo_estado: 'En Reparación',
-      p_nota: 'Iniciando reparación tras aprobación del cliente',
-    })
-
     if (cliente?.whatsapp) {
       const primerNombre = cliente.nombre_apellido.split(' ')[0]
-      const contenido = `¡Perfecto ${primerNombre}! ✅ Recibimos tu aprobación para el equipo *#${equipo.id} - ${descripcion}*. Ya estamos trabajando en la reparación. Te avisamos cuando esté listo. 🔧`
+      const contenido = `${saludoHora()} ${primerNombre}! ✅ Recibimos tu aprobación para el equipo *#${equipo.id} - ${descripcion}*. El taller coordinará la reparación a la brevedad. Te avisamos cuando esté listo. 🔧`
       const r = await zapiEnviarTexto(cliente.whatsapp, contenido)
       if (r.ok) await guardar(contenido, r.messageId)
     }
   } else {
     if (cliente?.whatsapp) {
       const primerNombre = cliente.nombre_apellido.split(' ')[0]
-      const contenido = `Hola ${primerNombre}, registramos el rechazo del presupuesto para el equipo *#${equipo.id} - ${descripcion}*.\n\nTenés *15 días corridos* para retirarlo sin costo desde hoy. Pasado ese plazo aplica un cargo de guarda mensual.\n\nCualquier consulta estamos a tu disposición. 🙏`
+      const contenido = `${saludoHora()} ${primerNombre}, registramos el rechazo del presupuesto para el equipo *#${equipo.id} - ${descripcion}*.\n\nTenés *10 días corridos* para retirarlo sin costo desde hoy. Pasado ese plazo aplica un cargo de guarda mensual.\n\nCualquier consulta estamos a tu disposición. 🙏`
       const r = await zapiEnviarTexto(cliente.whatsapp, contenido)
       if (r.ok) await guardar(contenido, r.messageId)
     }

@@ -55,3 +55,17 @@ export function generarTokenAprobacion(): string {
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ')
 }
+
+export function saludoHora(): string {
+  const hora = parseInt(
+    new Date().toLocaleString('en-US', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      hour: 'numeric',
+      hour12: false,
+    }),
+    10
+  )
+  if (hora < 12) return 'Buen día'
+  if (hora < 19) return 'Buenas tardes'
+  return 'Buenas noches'
+}

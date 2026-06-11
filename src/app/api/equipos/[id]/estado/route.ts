@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { EstadoEquipo } from '@/types'
 import { transicionValida } from '@/lib/state-machine'
 import { zapiEnviarTexto, normalizarTelefono } from '@/lib/zapi'
+import { saludoHora } from '@/lib/utils'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (cliente?.whatsapp) {
       const primerNombre = cliente.nombre_apellido.split(' ')[0]
       const descripcion = [equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ')
-      const contenido = `Hola ${primerNombre}! 🎉\n\nTu equipo *#${id} - ${descripcion}* está listo para retirar.\n\nTenés *15 días corridos* para pasar a buscarlo. Pasado ese plazo se aplica un cargo de guarda mensual.\n\n¡Gracias por elegirnos! 🔧`
+      const contenido = `${saludoHora()} ${primerNombre}! 🎉\n\nTe contactamos de *UA Motoimplementos*.\n\nTu equipo *#${id} - ${descripcion}* está listo para retirar.\n\nTenés *10 días corridos* para pasar a buscarlo. Pasado ese plazo se aplica un cargo de guarda mensual.\n\n¡Gracias por elegirnos! 🔧`
       const r = await zapiEnviarTexto(cliente.whatsapp, contenido)
       if (r.ok) {
         const phone = normalizarTelefono(cliente.whatsapp)

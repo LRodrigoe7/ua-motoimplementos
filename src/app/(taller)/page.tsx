@@ -42,7 +42,7 @@ async function getDashboardData() {
     supabase
       .from('equipos')
       .select('*, clientes(*)')
-      .in('estado_actual', ['Esperando Aprobación', 'Finalizado'])
+      .in('estado_actual', ['Esperando Aprobación', 'Aceptado', 'Finalizado'])
       .order('created_at', { ascending: true }),
   ])
 

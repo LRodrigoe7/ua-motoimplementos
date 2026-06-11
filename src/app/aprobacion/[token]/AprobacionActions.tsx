@@ -33,7 +33,7 @@ export function AprobacionActions({ token, monto }: Props) {
         <p className="text-4xl mb-2">✅</p>
         <p className="font-bold text-green-800 text-lg">¡Presupuesto aprobado!</p>
         <p className="text-sm text-green-700 mt-1">
-          Tu equipo entrará en reparación a la brevedad. Te notificaremos cuando esté listo.
+          El taller coordinará la reparación a la brevedad. Te notificaremos cuando esté listo.
         </p>
       </div>
     )
@@ -45,7 +45,7 @@ export function AprobacionActions({ token, monto }: Props) {
         <p className="text-4xl mb-2">❌</p>
         <p className="font-bold text-red-800 text-lg">Presupuesto rechazado</p>
         <p className="text-sm text-red-700 mt-1">
-          Tenés 15 días corridos para retirar tu equipo sin costo adicional.
+          Tenés 10 días corridos para retirar tu equipo sin costo adicional.
           Pasado ese plazo, se aplicará un costo de guarda.
         </p>
       </div>
@@ -85,7 +85,7 @@ export function AprobacionActions({ token, monto }: Props) {
         ❌ Rechazar presupuesto
       </Button>
       <p className="text-xs text-gray-400 text-center">
-        Si rechazás, tenés 15 días para retirar el equipo sin costo.
+        Si rechazás, tenés 10 días para retirar el equipo sin costo.
       </p>
     </div>
   )

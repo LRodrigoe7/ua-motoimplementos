@@ -62,7 +62,7 @@ export default function AprobarPage({ params }: { params: Promise<{ token: strin
 
         {/* Header */}
         <div className="bg-blue-600 px-6 py-5 text-white">
-          <p className="text-sm opacity-80">Taller de Motoimplementos</p>
+          <p className="text-sm opacity-80">UA Motoimplementos</p>
           <h1 className="text-xl font-bold mt-1">Aprobación de presupuesto</h1>
         </div>
 
@@ -107,7 +107,7 @@ export default function AprobarPage({ params }: { params: Promise<{ token: strin
               </div>
 
               <p className="text-xs text-gray-400 mb-5 text-center">
-                Si rechazás, tenés 15 días para retirar el equipo sin costo.
+                Si rechazás, tenés 10 días para retirar el equipo sin costo.
               </p>
 
               <div className="flex flex-col gap-3">
@@ -154,7 +154,7 @@ export default function AprobarPage({ params }: { params: Promise<{ token: strin
               <XCircle className="h-14 w-14 text-red-400" />
               <div>
                 <p className="font-bold text-gray-900 text-lg">Presupuesto rechazado</p>
-                <p className="text-sm text-gray-500 mt-1">Tenés 15 días para retirar tu equipo sin costo desde hoy.</p>
+                <p className="text-sm text-gray-500 mt-1">Tenés 10 días para retirar tu equipo sin costo desde hoy.</p>
               </div>
             </div>
           )}
