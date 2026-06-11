@@ -40,4 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
+# docs internas / instrucciones de agentes IA (solo local)
+CLAUDE.md
+AGENTS.md
+diagnostico-evolution-api.md
