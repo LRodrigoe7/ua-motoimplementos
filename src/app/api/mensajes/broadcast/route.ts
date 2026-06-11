@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { normalizarTelefono } from '@/lib/zapi'
 
+export const maxDuration = 300 // 5 min — máximo en Vercel Pro
+
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
 
 export async function POST(req: NextRequest) {
