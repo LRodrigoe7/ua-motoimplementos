@@ -6,6 +6,23 @@ export const maxDuration = 300 // 5 min — máximo en Vercel Pro
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
 
+async function wasenderPost(apiKey: string, body: object, intento = 1): Promise<{ ok: boolean; text: string; msgId: string | null }> {
+  const res = await fetch('https://www.wasenderapi.com/api/send-message', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify(body),
+  })
+  const text = await res.text()
+  if (res.status === 429 && intento <= 3) {
+    const retryAfter = (JSON.parse(text)?.retry_after ?? 5) + 1
+    console.log(`[broadcast] 429 rate limit, reintentando en ${retryAfter}s (intento ${intento})`)
+    await delay(retryAfter * 1000)
+    return wasenderPost(apiKey, body, intento + 1)
+  }
+  const msgId = res.ok ? (JSON.parse(text)?.data?.msgId?.toString() || null) : null
+  return { ok: res.ok, text, msgId }
+}
+
 export async function POST(req: NextRequest) {
   const { destinatarios, mensaje, imagen, imagenMime, imagenNombre } = await req.json()
 
@@ -65,50 +82,30 @@ export async function POST(req: NextRequest) {
     const phone = normalizarTelefono(dest.numero_wa)
 
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      }
       const to = `${phone}@s.whatsapp.net`
-
       const registros = []
 
       // Si hay imagen: enviar imagen primero, luego texto por separado
       if (imagenUrl) {
-        const resImg = await fetch('https://www.wasenderapi.com/api/send-message', {
-          method: 'POST', headers,
-          body: JSON.stringify({ to, imageUrl: imagenUrl }),
-        })
-        const resImgBody = await resImg.text()
-        console.log(`[broadcast] img to=+${phone} status=${resImg.status} body=${resImgBody}`)
-        if (!resImg.ok) { errores.push(dest.nombre); continue }
-        const msgIdImg = resImg.ok ? (JSON.parse(resImgBody)?.data?.msgId?.toString() || null) : null
+        const rImg = await wasenderPost(apiKey, { to, imageUrl: imagenUrl })
+        console.log(`[broadcast] img to=+${phone} ok=${rImg.ok} body=${rImg.text}`)
+        if (!rImg.ok) { errores.push(dest.nombre); continue }
 
-        await delay(5500)
+        await delay(1500)
 
-        const resTxt = await fetch('https://www.wasenderapi.com/api/send-message', {
-          method: 'POST', headers,
-          body: JSON.stringify({ to, text: textoPersonalizado }),
-        })
-        const resTxtBody = await resTxt.text()
-        console.log(`[broadcast] txt to=+${phone} status=${resTxt.status} body=${resTxtBody}`)
-        if (!resTxt.ok) { errores.push(dest.nombre); continue }
-        const msgIdTxt = resTxt.ok ? (JSON.parse(resTxtBody)?.data?.msgId?.toString() || null) : null
+        const rTxt = await wasenderPost(apiKey, { to, text: textoPersonalizado })
+        console.log(`[broadcast] txt to=+${phone} ok=${rTxt.ok} body=${rTxt.text}`)
+        if (!rTxt.ok) { errores.push(dest.nombre); continue }
 
         registros.push(
-          { whatsapp_id: msgIdImg, contenido: `📷 ${imagenNombre || 'imagen'}` },
-          { whatsapp_id: msgIdTxt, contenido: textoPersonalizado },
+          { whatsapp_id: rImg.msgId, contenido: `📷 ${imagenNombre || 'imagen'}` },
+          { whatsapp_id: rTxt.msgId, contenido: textoPersonalizado },
         )
       } else {
-        const res = await fetch('https://www.wasenderapi.com/api/send-message', {
-          method: 'POST', headers,
-          body: JSON.stringify({ to, text: textoPersonalizado }),
-        })
-        const resBody = await res.text()
-        console.log(`[broadcast] to=+${phone} status=${res.status} body=${resBody}`)
-        if (!res.ok) { errores.push(dest.nombre); continue }
-        const msgId = JSON.parse(resBody)?.data?.msgId?.toString() || null
-        registros.push({ whatsapp_id: msgId, contenido: textoPersonalizado })
+        const r = await wasenderPost(apiKey, { to, text: textoPersonalizado })
+        console.log(`[broadcast] to=+${phone} ok=${r.ok} body=${r.text}`)
+        if (!r.ok) { errores.push(dest.nombre); continue }
+        registros.push({ whatsapp_id: r.msgId, contenido: textoPersonalizado })
       }
 
       await supabase.from('mensajes').insert(
