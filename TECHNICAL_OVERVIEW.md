@@ -205,14 +205,31 @@ const { data } = supabase.storage.from('broadcast-temp').getPublicUrl(fileName)
 
 ### 7.4 Rate limiting entre imagen y texto (Account Protection)
 
-**Problema:** Al enviar imagen y texto como dos mensajes separados con 800ms de delay, el segundo mensaje devolvía:
+**Problema:** Al enviar imagen y texto como dos mensajes separados, el segundo mensaje devolvía:
 ```json
 { "message": "You can only send 1 message every 5 seconds. Account protection enabled.", "retry_after": 4 }
 ```
 
-**Solución:** Aumentar el delay entre los dos mensajes a 5.5 segundos.
+**Primer intento fallido — delay fijo:** Se aumentó el delay a 5.5 segundos. Seguía fallando. La causa raíz es que WasenderAPI procesa los mensajes de forma **asíncrona**: devuelve 200 inmediatamente (`status: "in_progress"`) pero recién intenta enviar la imagen segundos después. Su ventana de 5 segundos empieza cuando *ellos* procesan el mensaje, no cuando nosotros recibimos el 200. Un delay fijo de nuestra parte nunca puede ganarle a un procesamiento asíncrono de tiempo variable.
 
-**Nota:** WasenderAPI permite desactivar "Account Protection" desde la configuración de la sesión. Si se desactiva, el delay puede reducirse a 800ms.
+**Solución definitiva — retry con backoff del servidor:** En lugar de adivinar cuánto esperar, se implementó una función `wasenderPost` que reintenta automáticamente si recibe un 429, usando el campo `retry_after` que la propia API devuelve en la respuesta:
+
+```typescript
+async function wasenderPost(apiKey: string, body: object, intento = 1) {
+  const res = await fetch('https://www.wasenderapi.com/api/send-message', { ... })
+  const text = await res.text()
+  if (res.status === 429 && intento <= 3) {
+    const retryAfter = (JSON.parse(text)?.retry_after ?? 5) + 1
+    await delay(retryAfter * 1000)
+    return wasenderPost(apiKey, body, intento + 1)  // reintenta solo este mensaje
+  }
+  return { ok: res.ok, text, msgId: ... }
+}
+```
+
+Si la imagen ya se envió correctamente, no se retoca — el retry aplica únicamente a la llamada que recibió el 429. Si no hay imagen, el texto se envía directo sin ningún delay.
+
+**Nota:** WasenderAPI permite desactivar "Account Protection" desde la configuración de la sesión, lo que eliminaría el rate limit por completo.
 
 ---
 
