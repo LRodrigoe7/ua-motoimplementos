@@ -48,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     })
   }
 
-  const nombreCliente = (equipo.clientes as { nombre_apellido: string } | null)?.nombre_apellido ?? 'Cliente'
+  const nombreCliente = (equipo.clientes as { nombre_apellido: string }[] | null)?.[0]?.nombre_apellido ?? 'Cliente'
   const monto = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(equipo.monto_presupuesto)
 
   await enviarPushATodos({
