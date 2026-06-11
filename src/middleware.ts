@@ -5,6 +5,8 @@ const RUTAS_PUBLICAS = [
   '/api/acceso',
   '/aprobar',
   '/api/aprobar',
+  '/aprobacion',
+  '/api/aprobacion',
   '/api/webhook',
   '/terminos',
 ]

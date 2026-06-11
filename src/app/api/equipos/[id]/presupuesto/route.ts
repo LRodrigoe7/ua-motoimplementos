@@ -4,6 +4,8 @@ import { requiereAprobacion, MONTO_APROBACION } from '@/lib/state-machine'
 import { generarTokenAprobacion } from '@/lib/utils'
 import { zapiEnviarTexto, normalizarTelefono } from '@/lib/zapi'
 
+export const maxDuration = 30
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     if (necesitaAprobacion) {
-      const linkAprobacion = `${appUrl}/aprobar/${token}`
+      const linkAprobacion = `${appUrl}/aprobacion/${token}`
       const mensajeInfo = `Hola ${primerNombre}! 👋\n\nTe contactamos del taller de motoimplementos.\n\nTu equipo *#${id} - ${descripcionEquipo}* fue revisado y el presupuesto de reparación es de *${montoFormateado}*.\n\nIngresá al siguiente link para *aprobar o rechazar* la reparación. Tenés 15 días para decidir.`
       const r1 = await zapiEnviarTexto(cliente.whatsapp, mensajeInfo)
       if (r1.ok) await guardar(mensajeInfo, r1.messageId)
