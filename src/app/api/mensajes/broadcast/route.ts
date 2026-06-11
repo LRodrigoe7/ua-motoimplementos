@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         if (!resImg.ok) { errores.push(dest.nombre); continue }
         const msgIdImg = resImg.ok ? (JSON.parse(resImgBody)?.data?.msgId?.toString() || null) : null
 
-        await delay(800)
+        await delay(5500)
 
         const resTxt = await fetch('https://www.wasenderapi.com/api/send-message', {
           method: 'POST', headers,
