@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
       }
       const to = `${phone}@s.whatsapp.net`
 
+      const registros = []
+
       // Si hay imagen: enviar imagen primero, luego texto por separado
       if (imagenUrl) {
         const resImg = await fetch('https://www.wasenderapi.com/api/send-message', {
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest) {
         const resImgBody = await resImg.text()
         console.log(`[broadcast] img to=+${phone} status=${resImg.status} body=${resImgBody}`)
         if (!resImg.ok) { errores.push(dest.nombre); continue }
+        const msgIdImg = resImg.ok ? (JSON.parse(resImgBody)?.data?.msgId?.toString() || null) : null
 
         await delay(800)
 
@@ -90,6 +93,12 @@ export async function POST(req: NextRequest) {
         const resTxtBody = await resTxt.text()
         console.log(`[broadcast] txt to=+${phone} status=${resTxt.status} body=${resTxtBody}`)
         if (!resTxt.ok) { errores.push(dest.nombre); continue }
+        const msgIdTxt = resTxt.ok ? (JSON.parse(resTxtBody)?.data?.msgId?.toString() || null) : null
+
+        registros.push(
+          { whatsapp_id: msgIdImg, contenido: `📷 ${imagenNombre || 'imagen'}` },
+          { whatsapp_id: msgIdTxt, contenido: textoPersonalizado },
+        )
       } else {
         const res = await fetch('https://www.wasenderapi.com/api/send-message', {
           method: 'POST', headers,
@@ -98,20 +107,21 @@ export async function POST(req: NextRequest) {
         const resBody = await res.text()
         console.log(`[broadcast] to=+${phone} status=${res.status} body=${resBody}`)
         if (!res.ok) { errores.push(dest.nombre); continue }
+        const msgId = JSON.parse(resBody)?.data?.msgId?.toString() || null
+        registros.push({ whatsapp_id: msgId, contenido: textoPersonalizado })
       }
 
-      const contenidoDB = imagenUrl
-        ? `📷 ${imagenNombre || 'imagen'}\n${textoPersonalizado}`
-        : textoPersonalizado
-
-      await supabase.from('mensajes').insert({
-        numero_wa: phone,
-        nombre_wa: dest.nombre,
-        cliente_id: dest.cliente_id || null,
-        remitente: 'taller',
-        contenido: contenidoDB,
-        leido: true,
-      })
+      await supabase.from('mensajes').insert(
+        registros.map(r => ({
+          whatsapp_id: r.whatsapp_id,
+          numero_wa: phone,
+          nombre_wa: dest.nombre,
+          cliente_id: dest.cliente_id || null,
+          remitente: 'taller',
+          contenido: r.contenido,
+          leido: true,
+        }))
+      )
       enviados++
     } catch {
       errores.push(dest.nombre)
