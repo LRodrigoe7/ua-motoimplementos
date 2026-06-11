@@ -10,14 +10,9 @@ export const revalidate = 0
 async function getDashboardData() {
   const supabase = await createClient()
 
-  const inicioMes = new Date()
-  inicioMes.setDate(1)
-  inicioMes.setHours(0, 0, 0, 0)
-
   const [
     { data: ultimos },
     { data: estados },
-    { data: historialMes },
     { data: urgentes },
   ] = await Promise.all([
     // Últimos 3 para mostrar en la lista
@@ -32,41 +27,32 @@ async function getDashboardData() {
       .from('equipos')
       .select('estado_actual')
       .not('estado_actual', 'eq', 'Entregado'),
-    // Historial mensual de aprobados y rechazados
-    supabase
-      .from('historial_estados')
-      .select('estado')
-      .in('estado', ['Aceptado', 'Rechazado'])
-      .gte('fecha_cambio', inicioMes.toISOString()),
     // Urgentes: requieren atención inmediata
     supabase
       .from('equipos')
       .select('*, clientes(*)')
-      .in('estado_actual', ['Esperando Aprobación', 'Aceptado', 'Finalizado'])
+      .in('estado_actual', ['Esperando Aprobación', 'Finalizado'])
       .order('created_at', { ascending: true }),
   ])
 
   return {
     ultimos: (ultimos as Equipo[]) || [],
     estados: estados || [],
-    historialMes: historialMes || [],
     urgentes: (urgentes as Equipo[]) || [],
   }
 }
 
 export default async function DashboardPage() {
-  const { ultimos, estados, historialMes, urgentes } = await getDashboardData()
+  const { ultimos, estados, urgentes } = await getDashboardData()
 
   const contadores = {
     ingreso: estados.filter(e => e.estado_actual === 'Ingreso').length,
     enReparacion: estados.filter(e => e.estado_actual === 'En Reparación').length,
     esperando: estados.filter(e => e.estado_actual === 'Esperando Aprobación').length,
     finalizados: estados.filter(e => e.estado_actual === 'Finalizado').length,
-    aprobadosMes: historialMes.filter(h => h.estado === 'Aceptado').length,
-    rechazadosMes: historialMes.filter(h => h.estado === 'Rechazado').length,
+    aprobados: estados.filter(e => e.estado_actual === 'Aceptado').length,
+    rechazados: estados.filter(e => e.estado_actual === 'Rechazado').length,
   }
-
-  const mesActual = new Date().toLocaleString('es-AR', { month: 'long' })
 
   return (
     <div className="flex flex-col gap-5">
@@ -89,8 +75,8 @@ export default async function DashboardPage() {
         <StatCard label="En Reparación" value={contadores.enReparacion} color="bg-orange-50" />
         <StatCard label="Esperando aprobación" value={contadores.esperando} color="bg-yellow-50" alert={contadores.esperando > 0} />
         <StatCard label="Listos para retirar" value={contadores.finalizados} color="bg-purple-50" alert={contadores.finalizados > 0} />
-        <StatCard label={`Aprobados (${mesActual})`} value={contadores.aprobadosMes} color="bg-green-50" />
-        <StatCard label={`Rechazados (${mesActual})`} value={contadores.rechazadosMes} color="bg-red-50" alert={contadores.rechazadosMes > 0} />
+        <StatCard label="Aprobados" value={contadores.aprobados} color="bg-green-50" />
+        <StatCard label="Rechazados" value={contadores.rechazados} color="bg-red-50" alert={contadores.rechazados > 0} />
       </div>
 
       {urgentes.length > 0 && (
