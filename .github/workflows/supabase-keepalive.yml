@@ -1,0 +1,24 @@
+name: Supabase Keepalive
+
+# Evita que Supabase pause el proyecto free tier por inactividad (7 dias sin
+# requests a su API). Solo hace un SELECT de lectura minimo, no toca la app.
+
+on:
+  schedule:
+    - cron: '0 9 * * *' # todos los dias a las 9:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API (solo lectura)
+        env:
+          SUPABASE_URL: https://zpbumrtjhaeculoyaelb.supabase.co
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwYnVtcnRqaGFlY3Vsb3lhZWxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NDU4MzIsImV4cCI6MjA5NjMyMTgzMn0.BJwuTgCWarRbwBcti19hJl8OBJWb26rS2vM268uUoCc
+        run: |
+          http_code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/clientes?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "Supabase respondio HTTP $http_code"
